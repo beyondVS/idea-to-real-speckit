@@ -1,0 +1,51 @@
+description = "현재 브랜치가 기능 브랜치 명명 규칙을 따르는지 검증합니다."
+
+# Source: git
+
+prompt = """
+# 기능 브랜치 검증 (Validate Feature Branch)
+
+현재 Git 브랜치가 예상되는 기능 브랜치 명명 규칙을 따르는지 검증합니다.
+
+## 선행 조건 (Prerequisites)
+
+- `git rev-parse --is-inside-work-tree 2>/dev/null`을 실행하여 Git을 사용할 수 있는지 확인합니다.
+- Git을 사용할 수 없는 경우 경고를 출력하고 검증을 건너뜁니다:
+  ```
+  [specify] Warning: Git repository not detected; skipped branch validation
+  ```
+
+## 검증 규칙 (Validation Rules)
+
+현재 브랜치 이름을 가져옵니다:
+
+```bash
+git rev-parse --abbrev-ref HEAD
+```
+
+브랜치 이름은 반드시 다음 패턴 중 하나와 일치해야 합니다:
+
+1. **순차 (Sequential)**: `^[0-9]{3,}-` (예: `001-feature-name`, `042-fix-bug`, `1000-big-feature`)
+2. **타임스탬프 (Timestamp)**: `^[0-9]{8}-[0-9]{6}-` (예: `20260319-143022-feature-name`)
+
+## 실행 (Execution)
+
+기능 브랜치에 있는 경우 (어느 한 패턴이라도 일치):
+- 출력: `✓ 기능 브랜치 확인: <branch-name>`
+- `specs/` 아래에 해당 명세 디렉토리가 존재하는지 확인합니다:
+  - 순차 브랜치의 경우, 접두사가 숫자 부분과 일치하는 `specs/<prefix>-*`를 찾습니다.
+  - 타임스탬프 브랜치의 경우, 접두사가 `YYYYMMDD-HHMMSS` 부분과 일치하는 `specs/<prefix>-*`를 찾습니다.
+- 명세 디렉토리가 있는 경우: `✓ 명세 디렉토리 발견: <path>`
+- 명세 디렉토리가 없는 경우: `⚠ 접두사 <prefix>에 대한 명세 디렉토리를 찾을 수 없습니다.`
+
+기능 브랜치에 있지 않은 경우:
+- 출력: `✗ 기능 브랜치가 아닙니다. 현재 브랜치: <branch-name>`
+- 출력: `기능 브랜치는 다음과 같이 명명되어야 합니다: 001-feature-name 또는 20260319-143022-feature-name`
+
+## 예외 처리 (Graceful Degradation)
+
+Git이 설치되어 있지 않거나 디렉토리가 Git 리포지토리가 아닌 경우:
+- 대체 수단으로 `SPECIFY_FEATURE` 환경 변수를 확인합니다.
+- 설정되어 있다면 해당 값을 명명 패턴에 대해 검증합니다.
+- 설정되어 있지 않다면 경고와 함께 검증을 건너뜁니다.
+"""
