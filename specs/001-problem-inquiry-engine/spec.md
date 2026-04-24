@@ -78,7 +78,7 @@
 - **FR-002**: **Questioner Node**: 분석된 결과와 대화 이력을 바탕으로 인과관계를 파고드는 5 Whys 질문을 생성해야 함.
 - **FR-003**: **State Management**: LangGraph를 사용하여 대화 이력, 질문 단계(1~5), 메타데이터를 포함하는 GraphState의 무결성을 유지해야 하며, PostgreSQL을 통해 모든 상태를 실시간으로 영구 저장하여 대화 중단 시 재개가 가능해야 함.
 - **FR-004**: **Edge Logic**: 근본 원인이 발견되었다고 판단되거나 질문이 5단계에 도달하면 대화를 즉시 종료해야 함.
-- **FR-005**: **Result Generation**: 대화 종료 시 Markdown 및 JSON 형식의 보고서를 생성해야 함.
+- **FR-005**: **Result Generation**: 대화 종료 시 모든 상세 데이터를 포함하는 JSON(Full Spec)과 가독성을 고려한 Markdown(요약 보고서)을 동시에 생성해야 함.
 - **FR-006**: **한국어 전용**: 시스템은 한국어 입력을 처리하고 한국어로 된 문제 기술서를 생성해야 함. (헌법의 한국어 최우선 원칙 준수)
 
 ### 비기능적 요구사항 (Non-Functional Requirements)
