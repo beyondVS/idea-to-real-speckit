@@ -19,10 +19,10 @@
 
 **목적**: 프로젝트 초기화 및 헌법 기반 환경 설정
 
-- [ ] T001 `plan.md`의 구조에 따라 프로젝트 디렉토리 및 앱 생성 (`src/config/`, `src/apps/inquiry/`, `src/core/`, `src/templates/inquiry/`)
-- [ ] T002 `uv init`으로 프로젝트 초기화 및 Python 3.13 의존성 설정 (Django 5.2, langchain, langgraph, psycopg, ollama-python)
-- [ ] T003 [P] `pyproject.toml` 내 Ruff(Lint/Format) 및 mypy(Type Safety) 도구 설정
-- [ ] T004 [P] `.env` 템플릿 생성 (DATABASE_URL, OLLAMA_BASE_URL 포함)
+- [x] T001 `plan.md`의 구조에 따라 프로젝트 디렉토리 및 앱 생성 (`src/config/`, `src/apps/inquiry/`, `src/core/`, `src/templates/inquiry/`)
+- [x] T002 `uv init`으로 프로젝트 초기화 및 Python 3.13 의존성 설정 (Django 5.2, langchain, langgraph, psycopg, ollama-python)
+- [x] T003 [P] `pyproject.toml` 내 Ruff(Lint/Format) 및 mypy(Type Safety) 도구 설정
+- [x] T004 [P] `.env` 템플릿 생성 (DATABASE_URL, OLLAMA_BASE_URL 포함)
 
 ---
 
@@ -32,13 +32,13 @@
 
 **⚠️ 중요(CRITICAL)**: 이 단계가 완료될 때까지 사용자 스토리 작업을 시작할 수 없습니다.
 
-- [ ] T005 PostgreSQL 데이터베이스 연결 및 Django `settings.py` 비동기 DB 설정 (`src/config/settings.py`)
-- [ ] T006 [P] ChatOllama 설정 및 LLM 추상화 인터페이스 구현 (`src/core/llm.py`)
-- [ ] T007 `data-model.md`에 정의된 핵심 Django 모델 구현 (`src/apps/inquiry/models.py`: `InquirySession`, `ProblemSpecification`)
-- [ ] T008 [P] LangGraph 상태 머신(GraphState) 기초 구조 및 `PostgresSaver` 체크포인터 설정 (`src/apps/inquiry/graph.py`)
-- [ ] T009 초기 데이터베이스 마이그레이션 실행 (`python manage.py makemigrations inquiry && python manage.py migrate`)
-- [ ] T009.1 [P] LLM 최종 실패 시 세션을 안전하게 보존하기 위한 Fallback 로직 구현 (`src/core/llm.py`)
-- [ ] T009.2 [P] 민감 정보 유출 방지를 위한 보안 로깅 필터(Log Redactor) 구현 (`src/config/logging.py`)
+- [x] T005 PostgreSQL 데이터베이스 연결 및 Django `settings.py` 비동기 DB 설정 (`src/config/settings.py`)
+- [x] T006 [P] ChatOllama 설정 및 LLM 추상화 인터페이스 구현 (`src/core/llm.py`)
+- [x] T007 `data-model.md`에 정의된 핵심 Django 모델 구현 (`src/apps/inquiry/models.py`: `InquirySession`, `ProblemSpecification`)
+- [x] T008 [P] LangGraph 상태 머신(GraphState) 기초 구조 및 `PostgresSaver` 체크포인터 설정 (`src/apps/inquiry/graph.py`)
+- [x] T009 초기 데이터베이스 마이그레이션 실행 (`python manage.py makemigrations inquiry && python manage.py migrate`)
+- [x] T009.1 [P] LLM 최종 실패 시 세션을 안전하게 보존하기 위한 Fallback 로직 구현 (`src/core/llm.py`)
+- [x] T009.2 [P] 민감 정보 유출 방지를 위한 보안 로깅 필터(Log Redactor) 구현 (`src/config/logging.py`)
 
 **체크포인트**: 기반 인프라 준비 완료 - 이제 진단 로직 구현을 시작할 수 있습니다.
 
@@ -52,15 +52,15 @@
 
 ### 사용자 스토리 1을 위한 테스트
 
-- [ ] T010 [P] [US1] Analyzer Node의 메타데이터 추출 로직 단위 테스트 작성 (`src/apps/inquiry/tests/test_nodes.py`)
-- [ ] T011 [P] [US1] `ajax-api.md` 규약에 따른 최초 채팅 시작 엔드포인트 통합 테스트 작성 (`src/apps/inquiry/tests/test_views.py`)
+- [x] T010 [P] [US1] Analyzer Node의 메타데이터 추출 로직 단위 테스트 작성 (`src/apps/inquiry/tests/test_nodes.py`)
+- [x] T011 [P] [US1] `ajax-api.md` 규약에 따른 최초 채팅 시작 엔드포인트 통합 테스트 작성 (`src/apps/inquiry/tests/test_views.py`)
 
 ### 사용자 스토리 1 구현
 
-- [ ] T012 [US1] Analyzer Node 구현: 텍스트 내 논리적 비약 및 페르소나 추출 로직 (`src/apps/inquiry/nodes.py`)
-- [ ] T013 [US1] LangGraph 워크플로우 정의: START -> Analyzer -> Questioner 진입 구조 (`src/apps/inquiry/graph.py`)
-- [ ] T014 [US1] `ajax-api.md`를 준수하는 Async Chat API View 초기 구현 (세션 생성 및 첫 응답) (`src/apps/inquiry/views.py`)
-- [ ] T015 [US1] AJAX 기반 대화 UI 및 인디케이터 템플릿 구현 (`src/templates/inquiry/chat.html`)
+- [x] T012 [US1] Analyzer Node 구현: 텍스트 내 논리적 비약 및 페르소나 추출 로직 (`src/apps/inquiry/nodes.py`)
+- [x] T013 [US1] LangGraph 워크플로우 정의: START -> Analyzer -> Questioner 진입 구조 (`src/apps/inquiry/graph.py`)
+- [x] T014 [US1] `ajax-api.md`를 준수하는 Async Chat API View 초기 구현 (세션 생성 및 첫 응답) (`src/apps/inquiry/views.py`)
+- [x] T015 [US1] AJAX 기반 대화 UI 및 인디케이터 템플릿 구현 (`src/templates/inquiry/chat.html`)
 
 **체크포인트**: 사용자 스토리 1 완료 - 시스템이 사용자의 입력을 받고 대화를 시작할 수 있습니다.
 
@@ -74,14 +74,14 @@
 
 ### 사용자 스토리 2를 위한 테스트
 
-- [ ] T016 [P] [US2] Questioner Node의 인과관계 추론 및 질문 생성 단위 테스트 작성 (`src/apps/inquiry/tests/test_nodes.py`)
-- [ ] T017 [P] [US2] 문답 반복 시 GraphState의 `current_step` 무결성 검증 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
+- [x] T016 [P] [US2] Questioner Node의 인과관계 추론 및 질문 생성 단위 테스트 작성 (`src/apps/inquiry/tests/test_nodes.py`)
+- [x] T017 [P] [US2] 문답 반복 시 GraphState의 `current_step` 무결성 검증 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
 
 ### 사용자 스토리 2 구현
 
-- [ ] T018 [US2] Questioner Node 구현: 이전 답변 분석 및 5 Whys 기반 심층 질문 생성 (`src/apps/inquiry/nodes.py`)
-- [ ] T019 [US2] LangGraph 루프 구성: Questioner -> User Input -> Analyzer 반복 순환 구조 (`src/apps/inquiry/graph.py`)
-- [ ] T020 [US2] Async View 고도화: 기존 세션 유지 및 지속적인 대화 상태 업데이트 로직 (`src/apps/inquiry/views.py`)
+- [x] T018 [US2] Questioner Node 구현: 이전 답변 분석 및 5 Whys 기반 심층 질문 생성 (`src/apps/inquiry/nodes.py`)
+- [x] T019 [US2] LangGraph 루프 구성: Questioner -> User Input -> Analyzer 반복 순환 구조 (`src/apps/inquiry/graph.py`)
+- [x] T020 [US2] Async View 고도화: 기존 세션 유지 및 지속적인 대화 상태 업데이트 로직 (`src/apps/inquiry/views.py`)
 
 **체크포인트**: 사용자 스토리 2 완료 - 사용자와 AI가 심층적인 문답을 주고받으며 문제를 파고들 수 있습니다.
 
@@ -95,14 +95,14 @@
 
 ### 사용자 스토리 3을 위한 테스트
 
-- [ ] T021 [P] [US3] Edge Logic의 종료 조건(5단계 도달 또는 근본 원인 파악) 판단 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
-- [ ] T022 [P] [US3] 최종 문제 기술서(Markdown/JSON) 스키마 유효성 검사 테스트 작성 (`src/apps/inquiry/tests/test_services.py`)
+- [x] T021 [P] [US3] Edge Logic의 종료 조건(5단계 도달 또는 근본 원인 파악) 판단 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
+- [x] T022 [P] [US3] 최종 문제 기술서(Markdown/JSON) 스키마 유효성 검사 테스트 작성 (`src/apps/inquiry/tests/test_services.py`)
 
 ### 사용자 스토리 3 구현
 
-- [ ] T023 [US3] Edge Logic 구현: 사용자의 종료 동의 여부를 확인하고 상태를 전이하는 제어 로직 (`src/apps/inquiry/graph.py`)
-- [ ] T024 [US3] 결과 생성 서비스 구현: 수집된 정보를 바탕으로 기술서 생성 (`src/apps/inquiry/services.py`)
-- [ ] T025 [US3] UI 결과 화면 구현: 생성된 기술서 다운로드 및 요약 보고서 노출 (`src/templates/inquiry/chat.html`)
+- [x] T023 [US3] Edge Logic 구현: 사용자의 종료 동의 여부를 확인하고 상태를 전이하는 제어 로직 (`src/apps/inquiry/graph.py`)
+- [x] T024 [US3] 결과 생성 서비스 구현: 수집된 정보를 바탕으로 기술서 생성 (`src/apps/inquiry/services.py`)
+- [x] T025 [US3] UI 결과 화면 구현: 생성된 기술서 다운로드 및 요약 보고서 노출 (`src/templates/inquiry/chat.html`)
 
 **체크포인트**: 모든 사용자 스토리 완료 - 전체 진단 프로세스가 완결되어 결과물을 제공합니다.
 
@@ -112,11 +112,11 @@
 
 **목적**: 품질 검증 및 헌법 준수 마무리
 
-- [ ] T026 [P] 전체 코드에 대해 Ruff check 및 mypy 엄격 모드 검증 수행
-- [ ] T027 모든 클래스 및 노드 메서드에 한국어 Google Style Docstring 적용 여부 전수 조사
-- [ ] T028 [P] `uv lock`으로 의존성 버전 고정 및 `README.md` 설치 가이드 업데이트
-- [ ] T029 LLM 호출 실패 시 지수 백오프(Exponential Backoff) 및 Fallback 동작 최종 검증 (`src/core/llm.py`)
-- [ ] T030 NFR-003 성능 지표(P95 5초 이내) 준수 여부 확인을 위한 부하 테스트 수행
+- [x] T026 [P] 전체 코드에 대해 Ruff check 및 mypy 엄격 모드 검증 수행
+- [x] T027 모든 클래스 및 노드 메서드에 한국어 Google Style Docstring 적용 여부 전수 조사
+- [x] T028 [P] `uv lock`으로 의존성 버전 고정 및 `README.md` 설치 가이드 업데이트
+- [x] T029 LLM 호출 실패 시 지수 백오프(Exponential Backoff) 및 Fallback 동작 최종 검증 (`src/core/llm.py`)
+- [x] T030 NFR-003 성능 지표(P95 5초 이내) 준수 여부 확인을 위한 부하 테스트 수행
 
 ---
 

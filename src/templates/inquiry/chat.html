@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문제 진단 엔진 - Speckit</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        #chat-container { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 15px; margin-bottom: 20px; background: #f9f9f9; }
+        .message { margin-bottom: 10px; padding: 10px; border-radius: 5px; }
+        .user { background: #e3f2fd; text-align: right; }
+        .ai { background: #f1f8e9; }
+        #controls { display: flex; gap: 10px; }
+        #user-input { flex-grow: 1; padding: 10px; }
+        #indicator { color: #1976d2; font-weight: bold; display: none; margin-bottom: 10px; }
+        #result-area { margin-top: 30px; padding: 20px; border: 2px solid #4caf50; display: none; background: #fff; }
+        #agreement-area { display: none; background: #fff9c4; padding: 15px; border: 1px solid #fbc02d; margin-bottom: 20px; }
+        pre { background: #eee; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧠 문제 진단 에이전트</h1>
+    <p>모호한 아이디어를 구조화된 명세서로 변환해 드립니다.</p>
+
+    <div id="chat-container"></div>
+    <div id="indicator">AI 전문가가 분석 중입니다...</div>
+
+    <div id="agreement-area">
+        <p>💡 충분한 정보가 수집되었습니다. 진단을 종료하고 최종 문제 기술서를 생성할까요?</p>
+        <button id="confirm-btn">네, 생성해 주세요</button>
+        <button id="continue-btn">아니요, 더 대화할래요</button>
+    </div>
+
+    <div id="controls">
+        <textarea id="user-input" rows="2" placeholder="답변을 입력하세요..."></textarea>
+        <button id="send-btn">보내기</button>
+    </div>
+
+    <div id="result-area">
+        <h2>✅ 진단 완료: 문제 기술서</h2>
+        <div id="spec-markdown"></div>
+        <hr>
+        <button id="download-json-btn">JSON 데이터 다운로드</button>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let lastResult = null;
+
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const indicator = document.getElementById('indicator');
+        const agreementArea = document.getElementById('agreement-area');
+        const resultArea = document.getElementById('result-area');
+
+        function addMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = `<strong>${role === 'user' ? '나' : 'AI'}</strong>: ${text.replace(/\n/g, '<br>')}`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            addMessage('user', text);
+            userInput.value = '';
+            sendBtn.disabled = true;
+            indicator.style.display = 'block';
+            agreementArea.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/inquiry/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, user_input: text })
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    sessionId = result.data.session_id;
+                    addMessage('ai', result.data.ai_response);
+                    
+                    if (result.data.show_agreement) {
+                        agreementArea.style.display = 'block';
+                    }
+                } else {
+                    alert('오류: ' + result.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('서버와 통신할 수 없습니다.');
+            } finally {
+                sendBtn.disabled = false;
+                indicator.style.display = 'none';
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+        document.getElementById('confirm-btn').addEventListener('click', async () => {
+            agreementArea.style.display = 'none';
+            indicator.innerText = '명세서 생성 중...';
+            indicator.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/inquiry/confirm/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    lastResult = result.data;
+                    document.getElementById('spec-markdown').innerText = result.data.markdown;
+                    resultArea.style.display = 'block';
+                    sendBtn.disabled = true;
+                    userInput.disabled = true;
+                }
+            } catch (err) {
+                alert('명세서 생성 실패');
+            } finally {
+                indicator.style.display = 'none';
+            }
+        });
+
+        document.getElementById('continue-btn').addEventListener('click', () => {
+            agreementArea.style.display = 'none';
+            addMessage('ai', '알겠습니다. 궁금한 점이 더 있다면 말씀해 주세요.');
+        });
+
+        document.getElementById('download-json-btn').addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify(lastResult.json, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `problem-spec-${sessionId}.json`;
+            a.click();
+        });
+    </script>
+</body>
+</html>
