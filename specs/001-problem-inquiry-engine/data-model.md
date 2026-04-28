@@ -15,6 +15,7 @@
 - **current_step**: Integer (1~5)
 - **metadata**: JSONField (추출된 페르소나, 배경 정보)
 - **logical_leaps**: JSONField (식별된 논리적 비약 목록)
+- **hidden_assumptions**: JSONField (식별된 숨겨진 전제 목록)
 
 ### 3. 문제 기술서 (ProblemSpecification)
 - **id**: UUID
