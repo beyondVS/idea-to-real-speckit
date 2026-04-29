@@ -19,26 +19,28 @@
 
 **목적**: 프로젝트 초기화 및 헌법 기반 환경 설정
 
-- [x] T001 `plan.md`의 구조에 따라 프로젝트 디렉토리 및 앱 생성 (`src/config/`, `src/apps/inquiry/`, `src/core/`, `src/templates/inquiry/`)
-- [x] T002 `uv init`으로 프로젝트 초기화 및 Python 3.13 의존성 설정 (Django 5.2, langchain, langgraph, psycopg, ollama-python)
-- [x] T003 [P] `pyproject.toml` 내 Ruff(Lint/Format) 및 mypy(Type Safety) 도구 설정
-- [x] T004 [P] `.env` 템플릿 생성 (DATABASE_URL, OLLAMA_BASE_URL 포함)
+- [ ] T001 `plan.md`의 구조에 따라 프로젝트 디렉토리 및 앱 생성 (`src/config/`, `src/apps/inquiry/`, `src/core/`, `src/templates/inquiry/`)
+- [ ] T002 `uv init`으로 프로젝트 초기화 및 Python 3.13 의존성 설정 (Django 5.2, langchain, langgraph, psycopg, ollama-python, presidio-analyzer)
+- [ ] T003 [P] `pyproject.toml` 내 Ruff(Lint/Format) 및 mypy(Type Safety) 도구 설정
+- [ ] T004 [P] `.env` 템플릿 생성 (DATABASE_URL, OLLAMA_BASE_URL, SECRET_KEY 포함)
 
 ---
 
 ## Phase 2: 기반 작업 (차단 선행 조건) - Phase 2: Foundational (Blocking Prerequisites)
 
-**목적**: 진단 엔진 구동을 위한 핵심 LLM 연동 및 데이터 저장소 구축
+**목적**: 진단 엔진 구동을 위한 핵심 LLM 연동, 데이터 저장소 및 보안 인프라 구축
 
 **⚠️ 중요(CRITICAL)**: 이 단계가 완료될 때까지 사용자 스토리 작업을 시작할 수 없습니다.
 
-- [x] T005 PostgreSQL 데이터베이스 연결 및 Django `settings.py` 비동기 DB 설정 (`src/config/settings.py`)
-- [x] T006 [P] ChatOllama 설정 및 LLM 추상화 인터페이스 구현 (`src/core/llm.py`)
-- [x] T007 `data-model.md`에 정의된 핵심 Django 모델 구현 (`src/apps/inquiry/models.py`: `InquirySession`, `ProblemSpecification`)
-- [x] T008 [P] LangGraph 상태 머신(GraphState) 기초 구조 및 `PostgresSaver` 체크포인터 설정 (`src/apps/inquiry/graph.py`)
-- [x] T009 초기 데이터베이스 마이그레이션 실행 (`python manage.py makemigrations inquiry && python manage.py migrate`)
-- [x] T009.1 [P] LLM 최종 실패 시 세션을 안전하게 보존하기 위한 Fallback 로직 구현 (`src/core/llm.py`)
-- [x] T009.2 [P] 민감 정보 유출 방지를 위한 보안 로깅 필터(Log Redactor) 구현 (`src/config/logging.py`)
+- [ ] T005 PostgreSQL 데이터베이스 연결 및 Django `settings.py` 비동기 DB 설정 (`src/config/settings.py`)
+- [ ] T006 [P] ChatOllama 설정, LLM 추상화 및 지수 백오프 유틸리티 구현 (`src/core/llm.py`, `src/core/backoff.py`)
+- [ ] T007 `data-model.md`에 정의된 핵심 Django 모델 구현 (`src/apps/inquiry/models.py`: `InquirySession`, `ProblemSpecification`)
+- [ ] T008 [P] LangGraph 상태 머신(GraphState) 기초 구조 및 `PostgresSaver` 체크포인터 설정 (`src/apps/inquiry/graph.py`)
+- [ ] T009 [P] `asyncio.Queue` 기반 로컬 작업 큐(Task Queue) 유틸리티 구현 (`src/core/queue.py`)
+- [ ] T010 [P] 개인정보 자동 탐지 및 마스킹(Masking) 서비스 구현 (`src/apps/inquiry/services.py`)
+- [ ] T011 초기 데이터베이스 마이그레이션 실행 (`python manage.py makemigrations inquiry && python manage.py migrate`)
+- [ ] T012 [P] LLM 최종 실패 시 세션을 안전하게 보존하기 위한 Fallback 로직 구현 (`src/core/llm.py`)
+- [ ] T013 [P] 민감 정보 유출 방지를 위한 보안 로깅 필터(Log Redactor) 구현 (`src/config/logging.py`)
 
 **체크포인트**: 기반 인프라 준비 완료 - 이제 진단 로직 구현을 시작할 수 있습니다.
 
@@ -50,73 +52,67 @@
 
 **독립적 테스트 (Independent Test)**: 모호한 문장 입력 시 메타데이터(페르소나)가 추출되고 첫 번째 "Why" 질문이 응답되는지 확인
 
-### 사용자 스토리 1을 위한 테스트
-
-- [x] T010 [P] [US1] Analyzer Node의 메타데이터 추출 로직 단위 테스트 작성 (`src/apps/inquiry/tests/test_nodes.py`)
-- [x] T011 [P] [US1] `ajax-api.md` 규약에 따른 최초 채팅 시작 엔드포인트 통합 테스트 작성 (`src/apps/inquiry/tests/test_views.py`)
-
 ### 사용자 스토리 1 구현
 
-- [x] T012 [US1] Analyzer Node 구현: 텍스트 내 논리적 비약 및 페르소나 추출 로직 (`src/apps/inquiry/nodes.py`)
-- [x] T013 [US1] LangGraph 워크플로우 정의: START -> Analyzer -> Questioner 진입 구조 (`src/apps/inquiry/graph.py`)
-- [x] T014 [US1] `ajax-api.md`를 준수하는 Async Chat API View 초기 구현 (세션 생성 및 첫 응답) (`src/apps/inquiry/views.py`)
-- [x] T015 [US1] AJAX 기반 대화 UI 및 인디케이터 템플릿 구현 (`src/templates/inquiry/chat.html`)
-
-**체크포인트**: 사용자 스토리 1 완료 - 시스템이 사용자의 입력을 받고 대화를 시작할 수 있습니다.
+- [ ] T014 [US1] Analyzer Node 구현: 텍스트 내 논리적 비약 및 페르소나 추출 로직 (다국어 입력 케이스 포함) (`src/apps/inquiry/nodes.py`)
+- [ ] T015 [US1] LangGraph 워크플로우 정의: START -> Analyzer -> Questioner 진입 구조 (`src/apps/inquiry/graph.py`)
+- [ ] T016 [US1] `ajax-api.md`를 준수하는 Async Chat API View 초기 구현 (세션 생성 및 첫 응답) (`src/apps/inquiry/views.py`)
+- [ ] T017 [US1] AJAX 기반 대화 UI 및 "분석 대기 중" 인디케이터 템플릿 구현 (`src/templates/inquiry/chat.html`)
 
 ---
 
 ## Phase 4: 사용자 스토리 2 - 5 Whys 심층 문답 진행 (우선순위: P1)
 
-**목표**: 최대 5회의 문답을 통해 인과관계를 심층적으로 탐색함
+**목표**: 최대 5회의 문답을 통해 인과관계를 심층적으로 탐색하고 질문 재구성을 지원함
 
-**독립적 테스트 (Independent Test)**: 3~5회 문답 동안 질문의 깊이가 점진적으로 깊어지며 `current_step`이 정상 증가하는지 확인
-
-### 사용자 스토리 2를 위한 테스트
-
-- [x] T016 [P] [US2] Questioner Node의 인과관계 추론 및 질문 생성 단위 테스트 작성 (`src/apps/inquiry/tests/test_nodes.py`)
-- [x] T017 [P] [US2] 문답 반복 시 GraphState의 `current_step` 무결성 검증 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
+**독립적 테스트 (Independent Test)**: 3~5회 문답 동안 질문의 깊이가 점진적으로 깊어지며 `current_step`이 정상 증가하고, 이해 실패 시 재구성이 일어나는지 확인
 
 ### 사용자 스토리 2 구현
 
-- [x] T018 [US2] Questioner Node 구현: 이전 답변 분석 및 5 Whys 기반 심층 질문 생성 (`src/apps/inquiry/nodes.py`)
-- [x] T019 [US2] LangGraph 루프 구성: Questioner -> User Input -> Analyzer 반복 순환 구조 (`src/apps/inquiry/graph.py`)
-- [x] T020 [US2] Async View 고도화: 기존 세션 유지 및 지속적인 대화 상태 업데이트 로직 (`src/apps/inquiry/views.py`)
-
-**체크포인트**: 사용자 스토리 2 완료 - 사용자와 AI가 심층적인 문답을 주고받으며 문제를 파고들 수 있습니다.
+- [ ] T018 [US2] Questioner Node 구현: 이전 답변 분석 및 5 Whys 기반 심층 질문 생성 (다국어 대응 확인) (`src/apps/inquiry/nodes.py`)
+- [ ] T019 [US2] 질문 재구성 로직 추가: 사용자 이해 실패 시 쉬운 용어로 재생성 (`src/apps/inquiry/nodes.py`)
+- [ ] T020 [US2] LangGraph 루프 구성: Questioner -> User Input -> Analyzer 반복 순환 구조 (`src/apps/inquiry/graph.py`)
+- [ ] T021 [US2] Async View 고도화: 작업 큐 연동 및 지속적인 대화 상태 업데이트 로직 (`src/apps/inquiry/views.py`)
 
 ---
 
 ## Phase 5: 사용자 스토리 3 - 진단 종료 및 문제 기술서 생성 (우선순위: P1)
 
-**목표**: 진단 완료 후 구조화된 Markdown 및 JSON 기술서를 생성함
+**목표**: 진단 완료 후 구조화된 Markdown 및 JSON 기술서를 생성하고 시각화함
 
-**독립적 테스트 (Independent Test)**: 종료 조건 도달 시 파일 생성 및 '인과관계 연쇄'가 기술서에 포함되었는지 검증
-
-### 사용자 스토리 3을 위한 테스트
-
-- [x] T021 [P] [US3] Edge Logic의 종료 조건(5단계 도달 또는 근본 원인 파악) 판단 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
-- [ ] T022 [P] [US3] 최종 문제 기술서(Markdown/JSON) 스키마 및 인과관계 단계(3단계 이상) 유효성 검사 테스트 작성 (`src/apps/inquiry/tests/test_services.py`)
+**독립적 테스트 (Independent Test)**: 종료 조건 도달 시 '순차적 타임라인'이 포함된 MD 파일 다운로드 확인
 
 ### 사용자 스토리 3 구현
 
-- [x] T023 [US3] Edge Logic 구현: 사용자의 종료 동의 여부를 확인하고 상태를 전이하는 제어 로직 (`src/apps/inquiry/graph.py`)
-- [x] T024 [US3] 결과 생성 서비스 구현: 수집된 정보를 바탕으로 기술서 생성 (`src/apps/inquiry/services.py`)
-- [x] T025 [US3] UI 결과 화면 구현: 생성된 기술서 다운로드 및 요약 보고서 노출 (`src/templates/inquiry/chat.html`)
+- [ ] T022 [US3] Edge Logic 구현: `is_final_diagnosis` 플래그 및 수렴도(0.8) 기반 종료 제어 (`src/apps/inquiry/graph.py`)
+- [ ] T023 [US3] 결과 생성 서비스 구현: Markdown(타임라인 시각화), JSON 생성 및 인과관계 3단계 이상 검증 로직 포함 (`src/apps/inquiry/services.py`)
+- [ ] T024 [US3] UI 결과 화면 구현: 종료 동의 팝업, 만족도 설문 UI 및 MD 다운로드 기능 포함 (`src/templates/inquiry/chat.html`)
+- [ ] T024.1 [US3] 사용자 만족도 점수 저장 API 구현 (`src/apps/inquiry/views.py`, `src/apps/inquiry/services.py`)
 
-**체크포인트**: 모든 사용자 스토리 완료 - 전체 진단 프로세스가 완결되어 결과물을 제공합니다.
+---
+
+## Phase 6: 사용자 스토리 4 - 롤백, 분기 관리 및 세션 재개 (우선순위: P1)
+
+**목표**: 이전 단계 롤백, 새로운 대화 분기 생성 및 중단된 세션의 목록화/재개 지원
+
+**독립적 테스트 (Independent Test)**: 이전 단계로 롤백 시 분기가 생성되는지 확인하고, 대시보드에서 기존 세션 재개가 가능한지 검증
+
+### 사용자 스토리 4 구현
+
+- [ ] T025 [US4] LangGraph 롤백 로직 및 분기 관리 기능 구현 (`src/apps/inquiry/graph.py`)
+- [ ] T026 [US4] UI '분기 탐색기' 구현: 트리/드롭다운 기반 분기 시각화, 선택 시 상태 전환 및 롤백 인터페이스 통합 (`src/templates/inquiry/chat.html`)
+- [ ] T027 [US4] 사용자 대시보드 구현: 진행 중인 세션 목록 노출 및 자동 재개 엔드포인트 (`src/apps/inquiry/views.py`)
 
 ---
 
 ## Phase N: 마무리 및 횡단 관심사 - Phase N: Polish & Cross-Cutting Concerns
 
-**목적**: 품질 검증 및 헌법 준수 마무리
+**목적**: 품질 검증, 보안 강화 및 헌법 준수 마무리
 
-- [x] T026 [P] 전체 코드에 대해 Ruff check 및 mypy 엄격 모드 검증 수행
-- [x] T027 모든 클래스 및 노드 메서드에 한국어 Google Style Docstring 적용 여부 전수 조사
-- [x] T028 [P] `uv lock`으로 의존성 버전 고정 및 `README.md` 설치 가이드 업데이트
-- [x] T029 LLM 호출 실패 시 지수 백오프(Exponential Backoff) 및 Fallback 동작 최종 검증 (`src/core/llm.py`)
-- [x] T030 NFR-003 성능 지표(P95 5초 이내) 준수 여부 확인을 위한 부하 테스트 수행
+- [ ] T028 [P] 전체 코드에 대해 Ruff check 및 mypy 엄격 모드 검증 수행
+- [ ] T029 모든 클래스 및 노드 메서드에 한국어 Google Style Docstring 적용 여부 전수 조사
+- [ ] T030 다국어 입력 시 LLM의 유연한 처리에 대한 최종 수용성 테스트 (FR-006 준수 확인)
+- [ ] T031 [P] `uv lock`으로 의존성 버전 고정 및 `README.md` 설치 가이드 업데이트
 
 ---
 
@@ -126,33 +122,17 @@
 
 - **Phase 1 (Setup)**: 즉시 시작 가능
 - **Phase 2 (Foundational)**: Phase 1 완료 후 시작. 모든 사용자 스토리의 필수 선행 조건.
-- **Phase 3~5 (User Stories)**: Phase 2 완료 후 우선순위(P1)에 따라 진행. 
-  - 세 스토리는 모두 P1이나, 논리적 흐름상 US1 -> US2 -> US3 순차 진행 권장.
+- **Phase 3~6 (User Stories)**: Phase 2 완료 후 순차 또는 병렬 진행 가능.
+  - 논리적 흐름상 US1 -> US2 -> US3 -> US4 순서 권장.
 
 ### 사용자 스토리 내부 순서
 
-- **테스트 우선**: 각 스토리 구현 전 `tests/` 내 테스트 코드를 먼저 작성하여 실패 확인
 - **데이터 → 로직 → 인터페이스**: Models -> Nodes/Services -> Views -> Templates 순서로 구현
 
 ### 병렬 실행 기회 (Parallel Opportunities)
 
-- [P] 표시된 모든 테스트 작업은 구현과 병렬로 진행 가능
-- Phase 2의 DB 설정(T005)과 LLM 인터페이스(T006)는 병렬로 진행 가능
-- 각 스토리의 프론트엔드 템플릿(T015, T025)은 백엔드 로직과 어느 정도 병렬로 진행 가능
-
----
-
-## 병렬 실행 예시: 사용자 스토리 1
-
-```bash
-# 개발자 A: Analyzer Node 로직 구현 및 테스트
-작업: T010 [US1] Analyzer Node 단위 테스트 작성
-작업: T012 [US1] Analyzer Node 구현
-
-# 개발자 B: UI 및 API 인터페이스 구현
-작업: T015 [US1] AJAX 기반 대화 UI 템플릿 구현
-작업: T014 [US1] Async Chat API View 초기 구현
-```
+- [P] 표시된 모든 작업은 완료되지 않은 타 작업에 대한 의존성이 없어 병렬로 진행 가능
+- Phase 2 내의 LLM 인터페이스(T006), 작업 큐(T009), 마스킹 서비스(T010)는 병렬 개발 가능
 
 ---
 
@@ -160,14 +140,14 @@
 
 ### MVP 우선 (사용자 스토리 1 위주)
 
-1. Phase 1 & 2를 신속히 완료하여 진단 가능 환경 구축
-2. Phase 3(US1)을 구현하여 "사용자 입력 -> AI 첫 반응"의 핵심 루프 검증
-3. **중단 및 검증**: 로컬 Ollama 연동 및 메타데이터 추출 정확도 확인
+1. Phase 1 & 2를 완료하여 기본 인프라 및 보안 필터 구축
+2. Phase 3(US1)을 구현하여 "사용자 입력 -> 분석 -> 첫 질문"의 루프 완성
+3. **중단 및 검증**: Ollama 연동 및 작업 큐 동작 확인
 
 ### 점진적 인도 (Incremental Delivery)
 
 1. 기반 준비 완료 (Phase 2)
-2. 시작 기능 제공 (US1) -> 문답 기능 추가 (US2) -> 결과 보고서 추가 (US3)
+2. 시작 기능 제공 (US1) -> 심층 문답 추가 (US2) -> 결과 시각화/생성 (US3) -> 분기/재개 UX 완성 (US4)
 3. 각 단계마다 `Independent Test`를 수행하여 회귀 오류 방지
 
 ---
@@ -175,5 +155,5 @@
 ## 참고 (Notes)
 
 - 모든 코드는 헌법에 따라 한국어 주석 및 Docstring을 포함해야 함
-- 비동기 처리(`AsyncView`, `LangGraph`) 시 스레드 안정성 및 DB 세션 관리에 유의함
-- `uv`를 사용하여 의존성 혼선을 방지하고 일관된 환경 유지
+- 마스킹 로직(T010)은 개인정보 유출 방지를 위해 최우선적으로 안정성 검증 필요
+- 무제한 세션/메시지 정책에 따라 DB 인덱싱 및 쿼리 최적화에 유의함
