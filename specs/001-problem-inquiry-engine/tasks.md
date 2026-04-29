@@ -96,7 +96,7 @@
 ### 사용자 스토리 3을 위한 테스트
 
 - [x] T021 [P] [US3] Edge Logic의 종료 조건(5단계 도달 또는 근본 원인 파악) 판단 테스트 작성 (`src/apps/inquiry/tests/test_graph.py`)
-- [x] T022 [P] [US3] 최종 문제 기술서(Markdown/JSON) 스키마 유효성 검사 테스트 작성 (`src/apps/inquiry/tests/test_services.py`)
+- [ ] T022 [P] [US3] 최종 문제 기술서(Markdown/JSON) 스키마 및 인과관계 단계(3단계 이상) 유효성 검사 테스트 작성 (`src/apps/inquiry/tests/test_services.py`)
 
 ### 사용자 스토리 3 구현
 
