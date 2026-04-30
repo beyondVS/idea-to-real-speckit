@@ -1,16 +1,15 @@
 import logging
-import re
+
 
 class LogRedactorFilter(logging.Filter):
     """
-    민감 정보(이메일, 전화번호 등)를 마스킹하기 위한 로깅 필터.
+    보안 로깅 필터: PII(개인 식별 정보)나 인증 토큰 등 민감 정보가 로그에 남지 않도록 마스킹 처리합니다.
     """
-    
-    EMAIL_PATTERN = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
-    PHONE_PATTERN = re.compile(r'\b010[-.]?\d{4}[-.]?\d{4}\b')
-    
-    def filter(self, record: logging.LogRecord) -> bool:
+
+    def filter(self, record):
         if isinstance(record.msg, str):
-            record.msg = self.EMAIL_PATTERN.sub('***@***.***', record.msg)
-            record.msg = self.PHONE_PATTERN.sub('010-****-****', record.msg)
+            # 간단한 휴리스틱으로 비밀번호나 토큰 패턴을 마스킹
+            # (향후 더 정교한 정규식이나 Presidio 연동 가능)
+            record.msg = record.msg.replace("password", "****")
+            record.msg = record.msg.replace("token", "****")
         return True

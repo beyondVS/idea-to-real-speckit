@@ -3,61 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>문제 진단 엔진 - Speckit</title>
+    <title>Problem Inquiry Engine</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-        #chat-container { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 15px; margin-bottom: 20px; background: #f9f9f9; }
-        .message { margin-bottom: 10px; padding: 10px; border-radius: 5px; }
-        .user { background: #e3f2fd; text-align: right; }
-        .ai { background: #f1f8e9; }
-        #controls { display: flex; gap: 10px; }
-        #user-input { flex-grow: 1; padding: 10px; }
-        #indicator { color: #1976d2; font-weight: bold; display: none; margin-bottom: 10px; }
-        #result-area { margin-top: 30px; padding: 20px; border: 2px solid #4caf50; display: none; background: #fff; }
-        #agreement-area { display: none; background: #fff9c4; padding: 15px; border: 1px solid #fbc02d; margin-bottom: 20px; }
-        pre { background: #eee; padding: 10px; overflow-x: auto; }
+        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; display: flex; gap: 20px; }
+        #sidebar { width: 200px; padding: 15px; background: #fff; border: 1px solid #ccc; border-radius: 8px; }
+        #main-content { flex-grow: 1; }
+        #chat-container { border: 1px solid #ccc; height: 400px; overflow-y: auto; padding: 15px; background-color: #fff; border-radius: 8px; margin-bottom: 20px; }
+        .message { margin-bottom: 15px; padding: 10px; border-radius: 5px; position: relative; }
+        .user { background-color: #e3f2fd; text-align: right; }
+        .assistant { background-color: #f1f8e9; text-align: left; }
+        .rollback-btn { font-size: 11px; color: #2196f3; cursor: pointer; text-decoration: underline; margin-right: 5px; }
+        #input-area { display: flex; gap: 10px; }
+        input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background-color: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { background-color: #ccc; }
+        #loading { display: none; color: #666; font-style: italic; }
+        #result-area { display: none; margin-top: 20px; padding: 20px; border: 2px solid #4caf50; border-radius: 8px; background-color: #e8f5e9; }
+        .rating-stars { display: flex; gap: 5px; margin: 10px 0; }
+        .star { font-size: 24px; cursor: pointer; color: #ccc; }
+        .star.active { color: #ffc107; }
     </style>
 </head>
 <body>
-    <h1>🧠 문제 진단 에이전트</h1>
-    <p>모호한 아이디어를 구조화된 명세서로 변환해 드립니다.</p>
-
-    <div id="chat-container"></div>
-    <div id="indicator">AI 전문가가 분석 중입니다...</div>
-
-    <div id="agreement-area">
-        <p>💡 충분한 정보가 수집되었습니다. 진단을 종료하고 최종 문제 기술서를 생성할까요?</p>
-        <button id="confirm-btn">네, 생성해 주세요</button>
-        <button id="continue-btn">아니요, 더 대화할래요</button>
-    </div>
-
-    <div id="controls">
-        <textarea id="user-input" rows="2" placeholder="답변을 입력하세요..."></textarea>
-        <button id="send-btn">보내기</button>
-    </div>
-
-    <div id="result-area">
-        <h2>✅ 진단 완료: 문제 기술서</h2>
-        <div id="spec-markdown"></div>
+    <div id="sidebar">
+        <h3>분기 탐색기</h3>
+        <ul id="branch-list">
+            <li>(메인 흐름)</li>
+        </ul>
         <hr>
-        <button id="download-json-btn">JSON 데이터 다운로드</button>
+        <a href="/inquiry/dashboard/">내 이력 보기</a>
+    </div>
+
+    <div id="main-content">
+        <h1>진단 엔진 (Inquiry Engine)</h1>
+        <div id="chat-container">
+            <div class="message assistant">분석하고 싶은 모호한 문제 상황이나 아이디어를 입력해 주세요.</div>
+        </div>
+        <div id="loading">분석 대기 중...</div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="여기에 입력하세요...">
+            <button id="send-btn">전송</button>
+        </div>
+
+        <div id="result-area">
+            <h3>🎉 진단이 완료되었습니다!</h3>
+            <p>파악된 근본 원인과 인과관계가 정리된 보고서가 생성되었습니다.</p>
+            <button id="download-btn">Markdown 보고서 다운로드</button>
+            <div id="survey-area">
+                <h4>진단 결과에 만족하시나요? (1-5점)</h4>
+                <div class="rating-stars">
+                    <span class="star" data-value="1">★</span><span class="star" data-value="2">★</span><span class="star" data-value="3">★</span><span class="star" data-value="4">★</span><span class="star" data-value="5">★</span>
+                </div>
+                <button id="submit-rating" disabled>평가 제출</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        let sessionId = null;
-        let lastResult = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        let sessionId = urlParams.get('session_id');
+        let selectedRating = 0;
+        let currentStep = 0;
 
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
-        const indicator = document.getElementById('indicator');
-        const agreementArea = document.getElementById('agreement-area');
+        const loading = document.getElementById('loading');
         const resultArea = document.getElementById('result-area');
+        const downloadBtn = document.getElementById('download-btn');
+        const submitRatingBtn = document.getElementById('submit-rating');
 
-        function addMessage(role, text) {
+        function appendMessage(role, content, step) {
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            div.innerHTML = `<strong>${role === 'user' ? '나' : 'AI'}</strong>: ${text.replace(/\n/g, '<br>')}`;
+            
+            let html = `<div>${content}</div>`;
+            if (role === 'user' && step > 0) {
+                html += `<span class="rollback-btn" onclick="rollback(${step})">[이 시점으로 롤백]</span>`;
+            }
+            div.innerHTML = html;
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -65,81 +89,100 @@
         async function sendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
-
-            addMessage('user', text);
+            appendMessage('user', text, currentStep);
             userInput.value = '';
-            sendBtn.disabled = true;
-            indicator.style.display = 'block';
-            agreementArea.style.display = 'none';
+            toggleLoading(true);
 
             try {
-                const response = await fetch('/api/inquiry/chat/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, user_input: text })
-                });
-                
-                const result = await response.json();
-                if (result.status === 'success') {
-                    sessionId = result.data.session_id;
-                    addMessage('ai', result.data.ai_response);
-                    
-                    if (result.data.show_agreement) {
-                        agreementArea.style.display = 'block';
-                    }
-                } else {
-                    alert('오류: ' + result.error);
+                const url = sessionId ? `/api/inquiry/${sessionId}/chat/` : '/api/inquiry/start/';
+                const body = sessionId ? { answer: text } : { initial_input: text };
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+
+                if (!sessionId) {
+                    sessionId = data.session_id;
+                    history.pushState(null, '', `?session_id=${sessionId}`);
                 }
+                currentStep = data.step;
+                appendMessage('assistant', data.question);
+
+                if (data.awaiting_consent) showConsentButtons();
             } catch (err) {
-                console.error(err);
-                alert('서버와 통신할 수 없습니다.');
+                appendMessage('assistant', '오류 발생');
             } finally {
-                sendBtn.disabled = false;
-                indicator.style.display = 'none';
+                toggleLoading(false);
             }
         }
 
-        sendBtn.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-
-        document.getElementById('confirm-btn').addEventListener('click', async () => {
-            agreementArea.style.display = 'none';
-            indicator.innerText = '명세서 생성 중...';
-            indicator.style.display = 'block';
-
+        async function rollback(step) {
+            if (!confirm(`${step}단계로 되돌리시겠습니까? 현재 이후의 기록은 새 분기로 관리됩니다.`)) return;
+            toggleLoading(true);
             try {
-                const response = await fetch('/api/inquiry/confirm/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId })
-                });
-                const result = await response.json();
-                if (result.status === 'success') {
-                    lastResult = result.data;
-                    document.getElementById('spec-markdown').innerText = result.data.markdown;
-                    resultArea.style.display = 'block';
-                    sendBtn.disabled = true;
-                    userInput.disabled = true;
-                }
-            } catch (err) {
-                alert('명세서 생성 실패');
+                const res = await fetch(`/api/inquiry/${sessionId}/rollback/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_step: step }) });
+                const data = await res.json();
+                appendMessage('assistant', `--- ${step}단계로 롤백되었습니다 ---`);
+                appendMessage('assistant', data.last_question);
+                currentStep = step;
             } finally {
-                indicator.style.display = 'none';
+                toggleLoading(false);
             }
-        });
+        }
 
-        document.getElementById('continue-btn').addEventListener('click', () => {
-            agreementArea.style.display = 'none';
-            addMessage('ai', '알겠습니다. 궁금한 점이 더 있다면 말씀해 주세요.');
-        });
+        function toggleLoading(isLoading) {
+            userInput.disabled = isLoading;
+            sendBtn.disabled = isLoading;
+            loading.style.display = isLoading ? 'block' : 'none';
+        }
 
-        document.getElementById('download-json-btn').addEventListener('click', () => {
-            const blob = new Blob([JSON.stringify(lastResult.json, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+        function showConsentButtons() {
+            const div = document.createElement('div');
+            div.style.marginTop = '10px';
+            div.innerHTML = `
+                <button onclick="confirmCompletion(true)">네, 완료할게요</button>
+                <button style="background-color: #f44336; margin-left: 5px;" onclick="confirmCompletion(false)">아니요, 더 물어볼게요</button>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function confirmCompletion(agree) {
+            if (!agree) { appendMessage('assistant', "알겠습니다. 진단을 계속 진행합니다."); return; }
+            toggleLoading(true);
+            try {
+                const res = await fetch(`/api/inquiry/${sessionId}/confirm/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: sessionId }) });
+                const data = await res.json();
+                resultArea.style.display = 'block';
+                downloadBtn.onclick = () => downloadFile(data.data.markdown, `report_${sessionId}.md`);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function downloadFile(content, filename) {
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `problem-spec-${sessionId}.json`;
-            a.click();
+            a.href = url; a.download = filename; a.click();
+        }
+
+        document.querySelectorAll('.star').forEach(star => {
+            star.onclick = () => {
+                selectedRating = star.dataset.value;
+                document.querySelectorAll('.star').forEach(s => s.classList.toggle('active', s.dataset.value <= selectedRating));
+                submitRatingBtn.disabled = false;
+            };
+        });
+
+        submitRatingBtn.onclick = async () => {
+            const res = await fetch(`/api/inquiry/${sessionId}/rate/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: parseInt(selectedRating) }) });
+            const data = await res.json();
+            alert(data.message || data.error);
+            if (!data.error) document.getElementById('survey-area').style.display = 'none';
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
         });
     </script>
 </body>

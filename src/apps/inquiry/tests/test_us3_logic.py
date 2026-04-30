@@ -1,5 +1,7 @@
 import pytest
+
 from apps.inquiry.graph import should_continue
+
 
 def test_edge_logic_termination():
     """
@@ -7,9 +9,10 @@ def test_edge_logic_termination():
     """
     state_continue = {"current_step": 3}
     state_end = {"current_step": 6}
-    
+
     assert should_continue(state_continue) == "continue"
     assert should_continue(state_end) == "end"
+
 
 @pytest.mark.django_db
 def test_specification_generation_service():

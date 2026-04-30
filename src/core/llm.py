@@ -1,27 +1,35 @@
 import logging
-from typing import Any, Dict, Optional, List
-from langchain_ollama import ChatOllama
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from typing import Any
+
 from django.conf import settings
+from langchain_ollama import ChatOllama
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
+
 
 def get_llm() -> ChatOllama:
     """
     ChatOllama 인스턴스를 반환합니다.
     """
-    base_url = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
+    base_url = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")
     return ChatOllama(
         model="gemma4:e4b",
         base_url=base_url,
         temperature=0.7,
     )
 
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception_type(Exception),
-    reraise=True
+    reraise=True,
 )
 def invoke_llm_with_retry(llm: ChatOllama, messages: list) -> Any:
     """
@@ -32,6 +40,7 @@ def invoke_llm_with_retry(llm: ChatOllama, messages: list) -> Any:
     except Exception as e:
         logger.warning(f"LLM API 호출 실패, 재시도 중... Error: {e}")
         raise
+
 
 def safe_invoke_llm(messages: list) -> str:
     """

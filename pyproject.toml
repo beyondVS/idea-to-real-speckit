@@ -5,13 +5,17 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "django~=5.2.0",
+    "django~=5.2",
     "django-environ>=0.13.0",
     "langchain>=1.2.15",
     "langchain-ollama>=1.1.0",
     "langgraph>=1.1.10",
     "langgraph-checkpoint-postgres>=3.0.5",
+    "mypy>=1.20.2",
+    "ollama>=0.6.1",
+    "presidio-analyzer>=2.2.362",
     "psycopg[binary]>=3.3.3",
+    "ruff>=0.15.12",
 ]
 
 [tool.ruff]

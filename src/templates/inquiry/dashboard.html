@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>진단 대시보드</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .session-card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .status { font-weight: bold; }
+        .btn { padding: 8px 15px; background-color: #4caf50; color: white; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>내 진단 이력</h1>
+    <div id="session-list">
+        {% for session in sessions %}
+        <div class="session-card">
+            <div>
+                <div><strong>세션 ID:</strong> {{ session.id }}</div>
+                <div class="status">상태: {{ session.get_status_display }}</div>
+                <div>마지막 활동: {{ session.updated_at }}</div>
+            </div>
+            <a href="/inquiry/chat/?session_id={{ session.id }}" class="btn">이어서 하기</a>
+        </div>
+        {% empty %}
+        <p>진행 중인 세션이 없습니다.</p>
+        {% endfor %}
+    </div>
+    <br>
+    <a href="/inquiry/chat/" class="btn" style="background-color: #2196f3;">새 진단 시작</a>
+</body>
+</html>
