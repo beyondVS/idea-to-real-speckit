@@ -6,6 +6,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard_view, name="dashboard"),
     path("api/inquiry/start/", views.start_session_api, name="start_session"),
     path("api/inquiry/<uuid:session_id>/chat/", views.chat_api, name="chat_api"),
+    path("api/inquiry/<uuid:session_id>/history/", views.get_history_api, name="get_history"),
     path(
         "api/inquiry/<uuid:session_id>/rollback/", views.rollback_api, name="rollback"
     ),

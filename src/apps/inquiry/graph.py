@@ -57,7 +57,7 @@ def create_inquiry_graph() -> StateGraph:
         router,
         {
             "await_consent": "await_consent",
-            "analyzer": END,  # 루프는 외부(View)에서 제어
+            END: END,
         },
     )
     workflow.add_edge("await_consent", END)
@@ -65,9 +65,10 @@ def create_inquiry_graph() -> StateGraph:
     return workflow
 
 
-def get_compiled_graph(conn: AsyncConnection) -> Any:
+async def get_compiled_graph(conn: AsyncConnection) -> Any:
     """
     체크포인터가 설정된 컴파일된 그래프를 반환합니다.
+    (주의: 데이터베이스 테이블은 setup_langgraph 명령어를 통해 미리 생성되어야 합니다.)
     """
     checkpointer = AsyncPostgresSaver(conn)
     workflow = create_inquiry_graph()

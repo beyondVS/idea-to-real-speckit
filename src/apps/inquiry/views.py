@@ -17,11 +17,55 @@ logger = logging.getLogger(__name__)
 
 async def dashboard_view(request):
     """
-    진행 중인 세션 목록을 보여주는 대시보드 뷰입니다. (T027)
+    진행 중인 세션 목록을 보여주는 대시보드 뷰입니다.
     """
-    # 데모용: User ID 1의 세션 목록 조회
-    sessions = InquirySession.objects.filter(user_id=1).order_by("-updated_at")
+    # 비동기 리스트 컴프리헨션을 사용하여 비동기적으로 데이터를 가져옵니다.
+    queryset = InquirySession.objects.filter(user_id=1).order_by("-updated_at")
+    sessions = [session async for session in queryset]
     return render(request, "inquiry/dashboard.html", {"sessions": sessions})
+
+
+@csrf_exempt
+async def get_history_api(request, session_id: str) -> JsonResponse:
+    """
+    GET /api/inquiry/<session_id>/history/
+    기존 세션의 대화 이력을 반환합니다. (LangGraph 체크포인트 활용)
+    """
+    try:
+        db_config = settings.DATABASES["default"]
+        conn_str = (
+            f"dbname={db_config['NAME']} "
+            f"user={db_config['USER']} "
+            f"password={db_config['PASSWORD']} "
+            f"host={db_config['HOST']} "
+            f"port={db_config['PORT']}"
+        )
+
+        async with await AsyncConnection.connect(conn_str) as conn:
+            app = await get_compiled_graph(conn)
+            config = {"configurable": {"thread_id": session_id}}
+            state = await app.aget_state(config)
+            
+            if not state.values:
+                return JsonResponse({"messages": [], "step": 0})
+
+            # LangGraph State에서 메시지 목록 추출
+            messages = []
+            for m in state.values.get("messages", []):
+                # LangChain Message 객체인 경우 content 추출, 아니면 딕셔너리 가정
+                content = m.content if hasattr(m, "content") else m.get("content", "")
+                role = "assistant" if (hasattr(m, "type") and m.type == "ai") or m.get("role") == "assistant" else "user"
+                messages.append({"role": role, "content": content})
+
+            return JsonResponse({
+                "messages": messages,
+                "step": state.values.get("current_step", 0),
+                "is_final_diagnosis": state.values.get("is_final_diagnosis", False),
+                "awaiting_consent": state.values.get("awaiting_consent", False)
+            })
+    except Exception as e:
+        logger.exception("이력 조회 오류: %s", e)
+        return JsonResponse({"error": "이력을 불러오는 중 오류가 발생했습니다."}, status=500)
 
 
 @csrf_exempt
@@ -56,7 +100,7 @@ async def start_session_api(request) -> JsonResponse:
 
         async def run_engine():
             async with await AsyncConnection.connect(conn_str) as conn:
-                app = get_compiled_graph(conn)
+                app = await get_compiled_graph(conn)
                 config = {"configurable": {"thread_id": session_id}}
                 input_state = {
                     "initial_input": initial_input,
@@ -110,7 +154,7 @@ async def chat_api(request, session_id: str) -> JsonResponse:
 
         async def run_engine():
             async with await AsyncConnection.connect(conn_str) as conn:
-                app = get_compiled_graph(conn)
+                app = await get_compiled_graph(conn)
                 config = {"configurable": {"thread_id": session_id}}
                 input_state = {"messages": [{"role": "user", "content": answer}]}
                 return await app.ainvoke(input_state, config=config)
@@ -159,7 +203,7 @@ async def rollback_api(request, session_id: str) -> JsonResponse:
         )
 
         async with await AsyncConnection.connect(conn_str) as conn:
-            app = get_compiled_graph(conn)
+            app = await get_compiled_graph(conn)
             config = {"configurable": {"thread_id": session_id}}
 
             # 히스토리에서 해당 단계 찾기
@@ -226,7 +270,7 @@ async def confirm_completion_api(request, session_id: str) -> JsonResponse:
             f"port={db_config['PORT']}"
         )
         async with await AsyncConnection.connect(conn_str) as conn:
-            app = get_compiled_graph(conn)
+            app = await get_compiled_graph(conn)
             config = {"configurable": {"thread_id": session_id}}
             state = await app.aget_state(config)
             spec = await generate_problem_specification(session_id, state.values)

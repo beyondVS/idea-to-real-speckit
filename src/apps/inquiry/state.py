@@ -1,4 +1,5 @@
-from typing import Any, TypedDict
+import operator
+from typing import Any, Annotated, TypedDict
 
 
 class GraphState(TypedDict):
@@ -7,7 +8,7 @@ class GraphState(TypedDict):
     """
 
     initial_input: str
-    messages: list[dict[str, str]]
+    messages: Annotated[list[dict[str, str]], operator.add]
     current_step: int
     is_final_diagnosis: bool
     metadata: dict[str, Any]
