@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem Inquiry Engine</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; display: flex; gap: 20px; }
+        #sidebar { width: 200px; padding: 15px; background: #fff; border: 1px solid #ccc; border-radius: 8px; }
+        #main-content { flex-grow: 1; }
+        #chat-container { border: 1px solid #ccc; height: 400px; overflow-y: auto; padding: 15px; background-color: #fff; border-radius: 8px; margin-bottom: 20px; }
+        .message { margin-bottom: 15px; padding: 10px; border-radius: 5px; position: relative; }
+        .user { background-color: #e3f2fd; text-align: right; }
+        .assistant { background-color: #f1f8e9; text-align: left; }
+        .rollback-btn { font-size: 11px; color: #2196f3; cursor: pointer; text-decoration: underline; margin-right: 5px; }
+        #input-area { display: flex; gap: 10px; }
+        input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background-color: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { background-color: #ccc; }
+        #loading { display: none; color: #666; font-style: italic; }
+        #result-area { display: none; margin-top: 20px; padding: 20px; border: 2px solid #4caf50; border-radius: 8px; background-color: #e8f5e9; }
+        .rating-stars { display: flex; gap: 5px; margin: 10px 0; }
+        .star { font-size: 24px; cursor: pointer; color: #ccc; }
+        .star.active { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h3>분기 탐색기</h3>
+        <ul id="branch-list">
+            <li>(메인 흐름)</li>
+        </ul>
+        <hr>
+        <a href="/inquiry/dashboard/">내 이력 보기</a>
+    </div>
+
+    <div id="main-content">
+        <h1>진단 엔진 (Inquiry Engine)</h1>
+        <div id="chat-container">
+            <div class="message assistant">분석하고 싶은 모호한 문제 상황이나 아이디어를 입력해 주세요.</div>
+        </div>
+        <div id="loading">분석 대기 중...</div>
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="여기에 입력하세요...">
+            <button id="send-btn">전송</button>
+        </div>
+
+        <div id="result-area">
+            <h3>🎉 진단이 완료되었습니다!</h3>
+            <p>파악된 근본 원인과 인과관계가 정리된 보고서가 생성되었습니다.</p>
+            <button id="download-btn">Markdown 보고서 다운로드</button>
+            <div id="survey-area">
+                <h4>진단 결과에 만족하시나요? (1-5점)</h4>
+                <div class="rating-stars">
+                    <span class="star" data-value="1">★</span><span class="star" data-value="2">★</span><span class="star" data-value="3">★</span><span class="star" data-value="4">★</span><span class="star" data-value="5">★</span>
+                </div>
+                <button id="submit-rating" disabled>평가 제출</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let sessionId = urlParams.get('session_id');
+        let selectedRating = 0;
+        let currentStep = 0;
+
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const loading = document.getElementById('loading');
+        const resultArea = document.getElementById('result-area');
+        const downloadBtn = document.getElementById('download-btn');
+        const submitRatingBtn = document.getElementById('submit-rating');
+
+        // 페이지 로드 시 기존 세션 이력 가져오기
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (sessionId) {
+                toggleLoading(true);
+                try {
+                    const res = await fetch(`/inquiry/api/inquiry/${sessionId}/history/`);
+                    const data = await res.json();
+                    if (data.messages && data.messages.length > 0) {
+                        chatContainer.innerHTML = ''; // 초기 환영 메시지 제거
+                        data.messages.forEach((msg, idx) => {
+                            // 사용자의 경우 롤백 버튼을 위해 임시 스텝 할당
+                            appendMessage(msg.role, msg.content, msg.role === 'user' ? Math.floor(idx/2) + 1 : 0);
+                        });
+                        currentStep = data.step;
+                        if (data.awaiting_consent) showConsentButtons();
+                    }
+                } catch (err) {
+                    console.error('이력 로딩 실패:', err);
+                } finally {
+                    toggleLoading(false);
+                }
+            }
+        });
+
+        function appendMessage(role, content, step) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            
+            let html = `<div>${content}</div>`;
+            if (role === 'user' && step > 0) {
+                html += `<span class="rollback-btn" onclick="rollback(${step})">[이 시점으로 롤백]</span>`;
+            }
+            div.innerHTML = html;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+            appendMessage('user', text, currentStep);
+            userInput.value = '';
+            toggleLoading(true);
+
+            try {
+                const url = sessionId ? `/inquiry/api/inquiry/${sessionId}/chat/` : '/inquiry/api/inquiry/start/';
+                const body = sessionId ? { answer: text } : { initial_input: text };
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+
+                if (!sessionId) {
+                    sessionId = data.session_id;
+                    history.pushState(null, '', `?session_id=${sessionId}`);
+                }
+                currentStep = data.step;
+                appendMessage('assistant', data.question);
+
+                if (data.awaiting_consent) showConsentButtons();
+            } catch (err) {
+                appendMessage('assistant', '오류 발생');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        async function rollback(step) {
+            if (!confirm(`${step}단계로 되돌리시겠습니까? 현재 이후의 기록은 새 분기로 관리됩니다.`)) return;
+            toggleLoading(true);
+            try {
+                const res = await fetch(`/inquiry/api/inquiry/${sessionId}/rollback/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_step: step }) });
+                const data = await res.json();
+                appendMessage('assistant', `--- ${step}단계로 롤백되었습니다 ---`);
+                appendMessage('assistant', data.last_question);
+                currentStep = step;
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function toggleLoading(isLoading) {
+            userInput.disabled = isLoading;
+            sendBtn.disabled = isLoading;
+            loading.style.display = isLoading ? 'block' : 'none';
+        }
+
+        function showConsentButtons() {
+            const div = document.createElement('div');
+            div.style.marginTop = '10px';
+            div.innerHTML = `
+                <button onclick="confirmCompletion(true)">네, 완료할게요</button>
+                <button style="background-color: #f44336; margin-left: 5px;" onclick="confirmCompletion(false)">아니요, 더 물어볼게요</button>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function confirmCompletion(agree) {
+            if (!agree) { appendMessage('assistant', "알겠습니다. 진단을 계속 진행합니다."); return; }
+            toggleLoading(true);
+            try {
+                const res = await fetch(`/inquiry/api/inquiry/${sessionId}/confirm/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: sessionId }) });
+                const data = await res.json();
+                resultArea.style.display = 'block';
+                downloadBtn.onclick = () => downloadFile(data.data.markdown, `report_${sessionId}.md`);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function downloadFile(content, filename) {
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename; a.click();
+        }
+
+        document.querySelectorAll('.star').forEach(star => {
+            star.onclick = () => {
+                selectedRating = star.dataset.value;
+                document.querySelectorAll('.star').forEach(s => s.classList.toggle('active', s.dataset.value <= selectedRating));
+                submitRatingBtn.disabled = false;
+            };
+        });
+
+        submitRatingBtn.onclick = async () => {
+            const res = await fetch(`/inquiry/api/inquiry/${sessionId}/rate/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: parseInt(selectedRating) }) });
+            const data = await res.json();
+            alert(data.message || data.error);
+            if (!data.error) document.getElementById('survey-area').style.display = 'none';
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>

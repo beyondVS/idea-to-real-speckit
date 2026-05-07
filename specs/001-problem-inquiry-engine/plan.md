@@ -1,60 +1,71 @@
 # 구현 계획 (Implementation Plan): Problem Inquiry Engine (진단 엔진)
 
-**브랜치 (Branch)**: `main` (전환 예정) | **날짜 (Date)**: 2026-04-24 | **명세서 (Spec)**: [specs/001-problem-inquiry-engine/spec.md](spec.md)
-**입력 (Input)**: 사용자 설명, Ollama gemma4:e4b 모델, Django AJAX 통신 요구사항
+**브랜치 (Branch)**: `001-problem-inquiry-engine` | **날짜 (Date)**: 2026-04-29 | **명세서 (Spec)**: [spec.md](spec.md)
+**입력 (Input)**: `/specs/001-problem-inquiry-engine/spec.md`에서 가져온 기능 명세서
 
 ## 요약 (Summary)
-사용자의 모호한 문제를 분석하여 구조화된 명세서를 생성하는 시스템을 구현합니다. LangChain 및 LangGraph를 사용하여 상태 기반 에이전트 아키텍처를 구축하고, 로컬 Ollama 서버와 통신합니다. 사용자 인터페이스는 Django 비동기 뷰와 AJAX를 통해 실시간 피드백을 제공합니다.
+
+사용자의 모호한 아이디어를 입력받아 **지능형 인쿼리 엔진(LangGraph)**과 논리적 추론을 통해 문제의 본질을 파악하고, 구조화된 **'문제 기술서'**를 생성하는 시스템입니다. Django 5.2와 PostgreSQL을 기반으로 대화 상태를 관리하며, Ollama(gemma4:e4b)를 연동하여 실시간 심층 문답(5 Whys)을 수행합니다. 사용자는 자신의 진단 이력을 관리하고 최종 결과물을 Markdown 형식으로 다운로드할 수 있습니다.
 
 ## 기술적 문맥 (Technical Context)
 
-**언어/버전 (Language/Version)**: Python 3.13 (Type Hints 준수)
+**언어/버전 (Language/Version)**: Python 3.13 (Type Hints 준수 의무)
 **프레임워크 (Framework)**: Django 5.2 LTS (Backend)
-**데이터베이스 (Database)**: PostgreSQL (세션 및 상태 저장)
-**LLM 도구 (LLM Tooling)**: LangChain, LangGraph, Ollama (gemma4:e4b)
-**패키지 관리 (Package Management)**: `uv`
-**도구 (Tooling)**: `Ruff` (Lint & Format), `mypy` (Type Check)
-**성능 목표 (Performance Goals)**: LLM 응답 대기 중 AJAX 인디케이터 표시, 5단계 이내 진단 완결
+**데이터베이스 (Database)**: PostgreSQL (InquirySession 및 상태 저장)
+**패키지 관리 (Package Management)**: `uv` (버전 명시 필수)
+**도구 (Tooling)**: `Ruff` (Lint & Format), `mypy` (Type Safety 검증)
+**대상 플랫폼 (Target Platform)**: Linux 서버 (Docker 환경 권장)
+**성능 목표 (Performance Goals)**: 질문 생성 응답 시간 P95 5초 이내, 작업 큐를 통한 동시성 제어  
+**제약 사항 (Constraints)**: 헌법상 실용주의 원칙 준수, Over-engineering 금지, 개인정보 마스킹 필수
 
 ## 헌법 준수 확인 (Constitution Check)
 
-- [x] **Problem Space First**: 해결책 이전에 문제 본질 분석 로직(Analyzer Node)이 설계됨.
-- [x] **Pragmatism**: 복잡한 소켓 통신 대신 단순한 AJAX 패턴 채택.
-- [x] **Type Safety**: Python 3.13 기반 Type Hints 설계 완료.
-- [x] **Documentation**: 모든 코드에 한국어 Google Style Docstring 적용 예정.
-- [x] **Django Standard**: Django 5.2 표준 레이아웃 및 마이그레이션 도구 활용.
-- [x] **Reliability**: LangChain의 재시도 전략 및 지수 백오프 적용 예정.
+*게이트(GATE): Phase 0 연구 전에 통과해야 함. Phase 1 설계 후 다시 확인.*
+
+- [x] **Problem Space First**: 해결책 이전에 문제의 본질(Root Cause)이 명확히 정의되었는가?
+- [x] **Pragmatism**: Over-engineering 없이 가장 단순하고 명확한 해결책인가?
+- [x] **Type Safety**: 모든 함수 인자와 반환값에 Type Hints가 설계되었는가?
+- [x] **Documentation**: 한국어 Google Style Docstring 작성이 계획되었는가?
+- [x] **Django Standard**: 마이그레이션 도구(makemigrations) 사용 및 ORM 우선주의를 따르는가?
+- [x] **Reliability**: 외부 API 호출 시 지수 백오프 및 Fallback 전략이 포함되었는가?
 
 ## 프로젝트 구조 (Project Structure)
 
 ### 문서 (이 기능 관련)
+
 ```text
 specs/001-problem-inquiry-engine/
-├── spec.md              # 기능 명세서
+├── spec.md              # 기능 명세서 (최종 개정 2026-04-29)
 ├── plan.md              # 이 파일
-├── research.md          # 기술 조사 보고서
-├── data-model.md        # 데이터베이스 및 엔티티 설계
-├── contracts/
-│   └── ajax-api.md      # AJAX 인터페이스 규약
-└── tasks.md             # 작업 목록 (다음 단계에서 생성)
+├── research.md          # Phase 0 출력 (기술 조사 및 결정)
+├── data-model.md        # Phase 1 출력 (엔티티 설계)
+├── quickstart.md        # Phase 1 출력 (실행 가이드)
+├── contracts/           # Phase 1 출력 (인터페이스 규약)
+│   └── ajax-api.md      # AJAX 기반 채팅 API 계약
+└── tasks.md             # Phase 2 출력 (/speckit.tasks 명령 생성)
 ```
 
-### 소스 코드 레이아웃
+### 소스 코드 (저장소 루트)
+
 ```text
+# Django 표준 레이아웃 (헌법 준수)
 src/
-├── config/              # Django settings (Async 지원)
-├── apps/
+├── config/              # settings (Async 지원), logging (보안 필터)
+├── apps/                # Django Applications
 │   └── inquiry/         # 진단 엔진 핵심 앱
 │       ├── models.py    # InquirySession, ProblemSpecification
-│       ├── views.py     # Async Chat API View
+│       ├── views.py     # Async Chat API Views
+│       ├── services.py  # Result Generation, Masking Service
 │       ├── nodes.py     # LangGraph Nodes (Analyzer, Questioner)
-│       └── graph.py     # LangGraph 상태 머신 정의
-├── core/
-│   └── llm.py           # ChatOllama 설정 및 추상화 인터페이스
+│       └── graph.py     # LangGraph 상태 머신 정의 및 롤백 로직
+├── core/                # llm.py (Ollama 추상화), backoff 유틸리티
 └── templates/
     └── inquiry/
-        └── chat.html    # AJAX 기반 대화 UI
+        └── chat.html    # AJAX 기반 분기 탐색 UI
 ```
 
 ## 복잡성 추적 (Complexity Tracking)
-- **Django Async + LangGraph**: 비동기 환경에서 상태 머신을 안정적으로 구동하기 위해 세심한 동기화 처리가 필요함. `research.md`의 패턴을 엄격히 준수함.
+
+| 위반 사항 | 필요성 | 더 간단한 대안을 거부한 이유 |
+|-----------|------------|-------------------------------------|
+| [Django Async + LangGraph] | [비동기 스트리밍 및 상태 관리] | [동기 방식으로는 UX 요구사항(5초 이내 피드백) 충족 불가] |

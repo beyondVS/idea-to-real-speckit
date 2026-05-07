@@ -1,0 +1,41 @@
+# Version control
+.git/
+.gitignore
+
+# Python/Django
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# Development tools
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Build
+dist/
+build/
+*.egg-info/
