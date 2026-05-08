@@ -1,23 +1,51 @@
 import pytest
+from langchain_core.messages import HumanMessage
 
 from apps.inquiry.graph import should_continue
+from apps.inquiry.state import InquiryState
 
 
-def test_edge_logic_termination():
+@pytest.mark.asyncio
+async def test_detailing_potential_transition():
     """
-    T021: 질문 단계가 5단계를 초과하면 종료(end)를 반환하는지 확인합니다.
+    T022: 근본 원인이 도출되었고 상세화가 가능한 경우(can_detail=True) questioner로 전이되는지 확인합니다.
     """
-    state_continue = {"current_step": 3}
-    state_end = {"current_step": 6}
+    state: InquiryState = {
+        "messages": [HumanMessage(content="원인 도출 완료")],
+        "turn_count": 3,
+        "invalid_response_count": 0,
+        "is_extension_approved": False,
+        "root_cause": {
+            "root_cause_found": True,
+            "content": "추상적인 원인",
+            "can_detail": True,
+            "detailing_guide": "더 자세히 물어보세요",
+        },
+        "metadata": {},
+    }
 
-    assert should_continue(state_continue) == "continue"
-    assert should_continue(state_end) == "end"
+    result = should_continue(state)
+    # can_detail이 True이므로 다시 질문 생성을 위해 questioner로 가야 함
+    assert result == "questioner"
 
 
-@pytest.mark.django_db
-def test_specification_generation_service():
+@pytest.mark.asyncio
+async def test_no_detailing_potential_termination():
     """
-    T022: 수집된 데이터를 바탕으로 Markdown/JSON 기술서가 올바르게 생성되는지 확인합니다.
+    근본 원인이 명확하여 상세화가 불필요한 경우(can_detail=False) END로 전이되는지 확인합니다.
     """
-    # 추후 서비스 구현 후 테스트 구체화 예정
-    assert True
+    state: InquiryState = {
+        "messages": [HumanMessage(content="원인 도출 완료")],
+        "turn_count": 3,
+        "invalid_response_count": 0,
+        "is_extension_approved": False,
+        "root_cause": {
+            "root_cause_found": True,
+            "content": "매우 구체적인 원인",
+            "can_detail": False,
+        },
+        "metadata": {},
+    }
+
+    result = should_continue(state)
+    assert result == "END"

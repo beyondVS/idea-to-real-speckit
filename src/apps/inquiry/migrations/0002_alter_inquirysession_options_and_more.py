@@ -7,102 +7,136 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('inquiry', '0001_initial'),
+        ("inquiry", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='inquirysession',
-            options={'ordering': ['-updated_at']},
+            name="inquirysession",
+            options={"ordering": ["-updated_at"]},
         ),
         migrations.AlterModelOptions(
-            name='problemspecification',
-            options={'ordering': ['-created_at']},
+            name="problemspecification",
+            options={"ordering": ["-created_at"]},
         ),
         migrations.RemoveField(
-            model_name='inquirysession',
-            name='final_root_cause',
+            model_name="inquirysession",
+            name="final_root_cause",
         ),
         migrations.RemoveField(
-            model_name='inquirysession',
-            name='is_completed',
+            model_name="inquirysession",
+            name="is_completed",
         ),
         migrations.RemoveField(
-            model_name='inquirysession',
-            name='started_at',
+            model_name="inquirysession",
+            name="started_at",
         ),
         migrations.AddField(
-            model_name='inquirysession',
-            name='created_at',
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now, help_text='세션 시작 시간'),
+            model_name="inquirysession",
+            name="created_at",
+            field=models.DateTimeField(
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                help_text="세션 시작 시간",
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='inquirysession',
-            name='metadata',
-            field=models.JSONField(blank=True, default=dict, help_text='사용자 페르소나, 배경 지식 등'),
+            model_name="inquirysession",
+            name="metadata",
+            field=models.JSONField(
+                blank=True, default=dict, help_text="사용자 페르소나, 배경 지식 등"
+            ),
         ),
         migrations.AddField(
-            model_name='inquirysession',
-            name='status',
-            field=models.CharField(choices=[('in_progress', '진행중'), ('waiting', '대기중'), ('completed', '완료'), ('error', '오류')], default='in_progress', help_text='세션 상태', max_length=20),
+            model_name="inquirysession",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("in_progress", "진행중"),
+                    ("waiting", "대기중"),
+                    ("completed", "완료"),
+                    ("error", "오류"),
+                ],
+                default="in_progress",
+                help_text="세션 상태",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='inquirysession',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True, help_text='마지막 활동 시간'),
+            model_name="inquirysession",
+            name="updated_at",
+            field=models.DateTimeField(auto_now=True, help_text="마지막 활동 시간"),
         ),
         migrations.AddField(
-            model_name='problemspecification',
-            name='content_md',
-            field=models.TextField(default='', help_text='사용자용 Markdown 요약 보고서'),
+            model_name="problemspecification",
+            name="content_md",
+            field=models.TextField(
+                default="", help_text="사용자용 Markdown 요약 보고서"
+            ),
         ),
         migrations.AddField(
-            model_name='problemspecification',
-            name='is_deleted',
-            field=models.BooleanField(default=False, help_text='사용자 삭제 여부 (영구 보관 정책 대응)'),
+            model_name="problemspecification",
+            name="is_deleted",
+            field=models.BooleanField(
+                default=False, help_text="사용자 삭제 여부 (영구 보관 정책 대응)"
+            ),
         ),
         migrations.AddField(
-            model_name='problemspecification',
-            name='rating',
-            field=models.PositiveSmallIntegerField(blank=True, help_text='사용자 만족도 점수 (1~5)', null=True),
+            model_name="problemspecification",
+            name="rating",
+            field=models.PositiveSmallIntegerField(
+                blank=True, help_text="사용자 만족도 점수 (1~5)", null=True
+            ),
         ),
         migrations.AddField(
-            model_name='problemspecification',
-            name='version',
-            field=models.PositiveIntegerField(default=1, help_text='동일 세션 내 생성 버전'),
+            model_name="problemspecification",
+            name="version",
+            field=models.PositiveIntegerField(
+                default=1, help_text="동일 세션 내 생성 버전"
+            ),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='inquirysession',
-            name='user',
-            field=models.ForeignKey(default=None, help_text='세션 소유 사용자', on_delete=django.db.models.deletion.CASCADE, related_name='inquiry_sessions', to=settings.AUTH_USER_MODEL),
+            model_name="inquirysession",
+            name="user",
+            field=models.ForeignKey(
+                default=None,
+                help_text="세션 소유 사용자",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="inquiry_sessions",
+                to=settings.AUTH_USER_MODEL,
+            ),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='problemspecification',
-            name='content_json',
-            field=models.JSONField(default=dict, help_text='시스템 연동용 상세 데이터'),
+            model_name="problemspecification",
+            name="content_json",
+            field=models.JSONField(default=dict, help_text="시스템 연동용 상세 데이터"),
         ),
         migrations.AlterField(
-            model_name='problemspecification',
-            name='created_at',
-            field=models.DateTimeField(auto_now_add=True, help_text='생성 시간'),
+            model_name="problemspecification",
+            name="created_at",
+            field=models.DateTimeField(auto_now_add=True, help_text="생성 시간"),
         ),
         migrations.AlterField(
-            model_name='problemspecification',
-            name='session',
-            field=models.ForeignKey(help_text='연결된 진단 세션', on_delete=django.db.models.deletion.CASCADE, related_name='specifications', to='inquiry.inquirysession'),
+            model_name="problemspecification",
+            name="session",
+            field=models.ForeignKey(
+                help_text="연결된 진단 세션",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="specifications",
+                to="inquiry.inquirysession",
+            ),
         ),
         migrations.RemoveField(
-            model_name='problemspecification',
-            name='content_markdown',
+            model_name="problemspecification",
+            name="content_markdown",
         ),
         migrations.AlterUniqueTogether(
-            name='problemspecification',
-            unique_together={('session', 'version')},
+            name="problemspecification",
+            unique_together={("session", "version")},
         ),
     ]

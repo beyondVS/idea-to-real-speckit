@@ -44,38 +44,42 @@ async def generate_problem_specification(
 ) -> ProblemSpecification:
     """
     진단 결과를 바탕으로 구조화된 Markdown 및 JSON 문제 기술서를 생성합니다.
-    인과관계 3단계 이상 여부를 검증합니다. (T023 반영)
     """
     session = await InquirySession.objects.aget(id=session_id)
+    root_cause_data = state.get("root_cause")
 
-    # 1. 인과관계 연쇄 구성 (Timeline 시각화)
-    causal_chain = state.get("causal_chain", [])
-    timeline_md = "## 인과관계 연쇄 (Causal Chain)\n\n"
-    for i, step in enumerate(causal_chain, 1):
-        timeline_md += f"{i}. **{step['question']}**\n   ↓ (답변: {step['answer']})\n"
+    # 1. 인과관계 연쇄 구성 (메시지 이력 활용)
+    messages = state.get("messages", [])
+    timeline_md = "## 대화 및 분석 이력 (Inquiry Timeline)\n\n"
+    for m in messages:
+        role_label = "질문" if (hasattr(m, "type") and m.type == "ai") else "답변"
+        content = m.content if hasattr(m, "content") else str(m)
+        timeline_md += f"- **[{role_label}]**: {content}\n"
 
     # 2. Markdown 보고서 작성
+    final_cause = (
+        root_cause_data.get("content") if root_cause_data else "심층 분석 필요"
+    )
+    confidence = (
+        root_cause_data.get("confidence_label") if root_cause_data else "알 수 없음"
+    )
+
     markdown_content = f"""# 문제 기술서 (Problem Specification)
 
 ## 0. 개요
-**최초 입력**: {state.get("initial_input", "정보 없음")}
 **페르소나**: {state.get("metadata", {}).get("persona", "정보 없음")}
 
 {timeline_md}
 
 ## 3. 최종 분석 결과
-**근본 원인**: {state.get("final_root_cause", "심층 분석 필요")}
-**식별된 전제**: {", ".join(state.get("identified_assumptions", []))}
+**근본 원인**: {final_cause}
+**분석 확신도**: {confidence}
 
 ---
 *본 보고서는 AI 진단 엔진에 의해 생성되었습니다.*
 """
 
-    # 3. 인과관계 단계 검증 (SC-002)
-    if len(causal_chain) < 3:
-        logger.warning(f"Session {session_id}: 인과관계 단계가 3단계 미만입니다.")
-
-    # 4. DB 저장
+    # 3. DB 저장
     latest_version = (
         await ProblemSpecification.objects.filter(session=session).acount() + 1
     )
@@ -86,8 +90,23 @@ async def generate_problem_specification(
         content_json=state,
     )
 
+    # 4. RootCause 객체 생성/업데이트
+    if root_cause_data and root_cause_data.get("root_cause_found"):
+        from apps.inquiry.models import RootCause
+
+        await RootCause.objects.aupdate_or_create(
+            session=session,
+            defaults={
+                "content": root_cause_data.get("content", ""),
+                "confidence_score": root_cause_data.get("confidence_score", 0.0),
+                "confidence_label": root_cause_data.get("confidence_label", ""),
+                "can_detail": root_cause_data.get("can_detail", False),
+                "detailing_guide": root_cause_data.get("detailing_guide"),
+            },
+        )
+
     # 세션 상태 업데이트
-    session.status = "completed"
+    session.status = "COMPLETED"
     await session.asave()
 
     return spec
@@ -106,6 +125,17 @@ async def save_user_rating(session_id: str, rating: int) -> bool:
     except Exception as e:
         logger.error(f"만족도 저장 실패: {e}")
     return False
+
+
+def get_confidence_label(score: float) -> str:
+    """
+    연구 결과(research.md)에 따라 수치적 확신도를 텍스트 라벨로 변환합니다.
+    """
+    if score >= 0.85:
+        return "매우 높음"
+    if score >= 0.60:
+        return "보통"
+    return "낮음"
 
 
 masking_service = MaskingService()

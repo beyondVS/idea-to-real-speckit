@@ -7,9 +7,9 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
+import asyncio
 import os
 import platform
-import asyncio
 
 from django.core.asgi import get_asgi_application
 

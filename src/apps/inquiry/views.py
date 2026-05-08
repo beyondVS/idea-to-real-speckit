@@ -45,27 +45,50 @@ async def get_history_api(request, session_id: str) -> JsonResponse:
             app = await get_compiled_graph(conn)
             config = {"configurable": {"thread_id": session_id}}
             state = await app.aget_state(config)
-            
+
             if not state.values:
                 return JsonResponse({"messages": [], "step": 0})
 
             # LangGraph State에서 메시지 목록 추출
             messages = []
             for m in state.values.get("messages", []):
-                # LangChain Message 객체인 경우 content 추출, 아니면 딕셔너리 가정
-                content = m.content if hasattr(m, "content") else m.get("content", "")
-                role = "assistant" if (hasattr(m, "type") and m.type == "ai") or m.get("role") == "assistant" else "user"
+                # 1. 콘텐츠 추출
+                if hasattr(m, "content"):
+                    content = m.content
+                elif isinstance(m, dict):
+                    content = m.get("content", "")
+                else:
+                    content = str(m)
+
+                # 2. 역할(Role) 판단
+                is_ai = False
+                if hasattr(m, "type"):
+                    is_ai = m.type == "ai"
+                elif isinstance(m, dict):
+                    is_ai = m.get("role") == "assistant"
+
+                role = "assistant" if is_ai else "user"
                 messages.append({"role": role, "content": content})
 
-            return JsonResponse({
-                "messages": messages,
-                "step": state.values.get("current_step", 0),
-                "is_final_diagnosis": state.values.get("is_final_diagnosis", False),
-                "awaiting_consent": state.values.get("awaiting_consent", False)
-            })
+
+            return JsonResponse(
+                {
+                    "messages": messages,
+                    "turn_count": state.values.get("turn_count", 0),
+                    "invalid_response_count": state.values.get(
+                        "invalid_response_count", 0
+                    ),
+                    "root_cause": state.values.get("root_cause"),
+                    "is_extension_approved": state.values.get(
+                        "is_extension_approved", False
+                    ),
+                }
+            )
     except Exception as e:
         logger.exception("이력 조회 오류: %s", e)
-        return JsonResponse({"error": "이력을 불러오는 중 오류가 발생했습니다."}, status=500)
+        return JsonResponse(
+            {"error": "이력을 불러오는 중 오류가 발생했습니다."}, status=500
+        )
 
 
 @csrf_exempt
@@ -102,10 +125,14 @@ async def start_session_api(request) -> JsonResponse:
             async with await AsyncConnection.connect(conn_str) as conn:
                 app = await get_compiled_graph(conn)
                 config = {"configurable": {"thread_id": session_id}}
+                # 초기 상태 설정 (InquiryState 스키마 준수)
                 input_state = {
-                    "initial_input": initial_input,
                     "messages": [{"role": "user", "content": initial_input}],
-                    "current_step": 0,
+                    "turn_count": 0,
+                    "invalid_response_count": 0,
+                    "is_extension_approved": False,
+                    "root_cause": None,
+                    "metadata": {},
                 }
                 return await app.ainvoke(input_state, config=config)
 
@@ -115,9 +142,9 @@ async def start_session_api(request) -> JsonResponse:
         return JsonResponse(
             {
                 "session_id": session_id,
-                "status": "in_progress",
-                "question": final_state["messages"][-1]["content"],
-                "step": final_state["current_step"],
+                "status": "IN_PROGRESS",
+                "question": final_state["messages"][-1].content,
+                "turn_count": final_state["turn_count"],
             },
             status=201,
         )
@@ -132,6 +159,7 @@ async def chat_api(request, session_id: str) -> JsonResponse:
     """
     POST /api/inquiry/<session_id>/chat/
     사용자의 답변을 전송하고 작업 큐를 통해 다음 단계의 질문을 생성합니다.
+    연장 승인 처리 로직을 포함합니다.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -152,23 +180,42 @@ async def chat_api(request, session_id: str) -> JsonResponse:
             f"port={db_config['PORT']}"
         )
 
+        # 연장 승인 여부 판단 (특정 키워드 또는 플래그 활용)
+        is_extension_approval = answer == "질의를 연장하겠습니다."
+
         async def run_engine():
             async with await AsyncConnection.connect(conn_str) as conn:
                 app = await get_compiled_graph(conn)
                 config = {"configurable": {"thread_id": session_id}}
+
                 input_state = {"messages": [{"role": "user", "content": answer}]}
+                if is_extension_approval:
+                    logger.info("Extension approved for session %s", session_id)
+                    input_state["is_extension_approved"] = True
+
                 return await app.ainvoke(input_state, config=config)
 
         # 큐에 작업 등록 및 결과 대기
         final_state = await llm_queue.enqueue(run_engine)
 
+        # 마지막 메시지 추출
+        last_msg = final_state["messages"][-1]
+        question = (
+            last_msg.content
+            if hasattr(last_msg, "content")
+            else last_msg.get("content", "")
+        )
+
         return JsonResponse(
             {
-                "status": "in_progress",
-                "question": final_state["messages"][-1]["content"],
-                "step": final_state["current_step"],
-                "is_final_diagnosis": final_state.get("is_final_diagnosis", False),
-                "awaiting_consent": final_state.get("awaiting_consent", False),
+                "status": "IN_PROGRESS",
+                "question": question,
+                "turn_count": final_state["turn_count"],
+                "invalid_response_count": final_state.get("invalid_response_count", 0),
+                "root_cause": final_state.get("root_cause"),
+                "is_extension_approved": final_state.get(
+                    "is_extension_approved", False
+                ),
             }
         )
 

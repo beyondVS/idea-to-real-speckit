@@ -1,47 +1,53 @@
-from unittest.mock import MagicMock, patch
+import uuid
+from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 from django.urls import reverse
-
-from apps.inquiry.models import InquirySession
+from langchain_core.messages import HumanMessage
+from psycopg import AsyncConnection
 
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_initial_chat_endpoint(async_client):
+async def test_root_cause_presentation(async_client):
     """
-    T011: 최초 채팅 시작 엔드포인트 통합 테스트.
-    새로운 세션을 생성하고 초기 AI 응답을 반환하는지 검증합니다.
+    T011: 근본 원인 도출 시 UI에 리포트가 정상적으로 전달되는지 확인합니다.
     """
-    url = reverse("chat_api")
+    session_id = str(uuid.uuid4())
+    url = reverse("chat_api", kwargs={"session_id": session_id})
 
-    with patch("apps.inquiry.graph.get_compiled_graph") as mock_get_graph:
-        mock_graph = MagicMock()
-        # Mocking the async stream or invoke response from graph
-        mock_graph.ainvoke.return_value = {
-            "messages": [{"role": "ai", "content": "어떤 생산성 문제가 있나요?"}],
-            "current_step": 1,
+    with patch("apps.inquiry.graph.get_compiled_graph") as mock_get_graph, \
+         patch("psycopg.AsyncConnection.connect", new_callable=AsyncMock) as mock_connect, \
+         patch("apps.inquiry.views.llm_queue.enqueue", new_callable=AsyncMock) as mock_enqueue:
+        
+        # AsyncConnection mock 설정
+        mock_conn = MagicMock(spec=AsyncConnection)
+        mock_connect.return_value = mock_conn
+        mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_conn.__aexit__ = AsyncMock()
+        
+        # enqueue 결과 mock 설정
+        final_state = {
+            "messages": [HumanMessage(content="원인이 도출되었습니다.")],
+            "root_cause": {
+                "root_cause_found": True,
+                "content": "테스트 원인",
+                "confidence_label": "매우 높음",
+                "can_detail": False,
+            },
+            "turn_count": 3,
         }
-        mock_get_graph.return_value = mock_graph
+        mock_enqueue.return_value = final_state
 
         response = await async_client.post(
             url,
             {
-                "session_id": None,
-                "user_input": "우리 팀의 생산성이 너무 낮은 것 같아요.",
+                "answer": "결과 보여줘",
             },
             content_type="application/json",
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
-        assert "session_id" in data["data"]
-        assert data["data"]["ai_response"] == "어떤 생산성 문제가 있나요?"
-        assert data["data"]["current_step"] == 1
-
-        # Session should be created
-        session_exists = await InquirySession.objects.filter(
-            id=data["data"]["session_id"]
-        ).aexists()
-        assert session_exists is True
+        assert data["root_cause"]["content"] == "테스트 원인"
+        assert data["root_cause"]["confidence_label"] == "매우 높음"

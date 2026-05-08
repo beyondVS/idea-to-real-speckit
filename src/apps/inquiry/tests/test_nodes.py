@@ -1,34 +1,37 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain_core.messages import HumanMessage
 
 from apps.inquiry.nodes import analyzer_node
+from apps.inquiry.state import InquiryState
 
 
 @pytest.mark.asyncio
-async def test_analyzer_node_metadata_extraction():
+async def test_analyzer_node_metadata_and_root_cause():
     """
-    T010: Analyzer Node가 사용자의 텍스트에서 메타데이터(페르소나)와 논리적 비약을 추출하는지 확인합니다.
+    T010: Analyzer Node가 사용자의 답변을 분석하여 메타데이터와 근본 원인(있을 경우)을 추출하는지 확인합니다.
     """
-    state = {
-        "session_id": "test-session",
-        "messages": [
-            {"role": "user", "content": "우리 팀의 생산성이 너무 낮은 것 같아요."}
-        ],
-        "current_step": 1,
+    state: InquiryState = {
+        "messages": [HumanMessage(content="서버 로그에 권한 오류가 계속 찍혀요.")],
+        "turn_count": 1,
+        "invalid_response_count": 0,
+        "is_extension_approved": False,
+        "root_cause": None,
         "metadata": {},
-        "logical_leaps": [],
-        "hidden_assumptions": [],
     }
 
-    with patch("apps.inquiry.nodes.invoke_llm_with_retry") as mock_invoke:
-        mock_response = MagicMock()
-        mock_response.content = '{"metadata": {"persona": "팀 리더", "background": "생산성 저하 고민"}, "logical_leaps": ["생산성 저하의 구체적 지표 누락"], "hidden_assumptions": ["생산성이 높아야만 한다"]}'
-        mock_invoke.return_value = mock_response
+    with patch("apps.inquiry.nodes.safe_invoke_llm") as mock_invoke:
+        # analyzer_node가 기대하는 평면 JSON 구조
+        mock_invoke.return_value = (
+            '{"persona": "개발자", "issue": "권한 오류", '
+            '"root_cause_found": true, "content": "설정 파일 권한 오설정", '
+            '"confidence_score": 0.9, "can_detail": true, "detailing_guide": "파일 소유자 확인"}'
+        )
 
-        # analyzer_node는 dict 형식의 상태를 업데이트하여 반환해야 함
         new_state = await analyzer_node(state)
 
-        assert new_state["metadata"]["persona"] == "팀 리더"
-        assert "생산성 저하의 구체적 지표 누락" in new_state["logical_leaps"]
-        assert "생산성이 높아야만 한다" in new_state["hidden_assumptions"]
+        assert new_state["metadata"]["persona"] == "개발자"
+        assert new_state["root_cause"]["root_cause_found"] is True
+        assert new_state["root_cause"]["content"] == "설정 파일 권한 오설정"
+        assert new_state["root_cause"]["confidence_score"] == 0.9

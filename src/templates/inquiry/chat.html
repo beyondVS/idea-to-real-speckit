@@ -36,6 +36,7 @@
 
     <div id="main-content">
         <h1>진단 엔진 (Inquiry Engine)</h1>
+        <div id="turn-info" style="margin-bottom: 10px; font-size: 0.9em; color: #666;">질의 진행: <span id="turn-count">0</span> / 5</div>
         <div id="chat-container">
             <div class="message assistant">분석하고 싶은 모호한 문제 상황이나 아이디어를 입력해 주세요.</div>
         </div>
@@ -46,10 +47,15 @@
         </div>
 
         <div id="result-area">
-            <h3>🎉 진단이 완료되었습니다!</h3>
-            <p>파악된 근본 원인과 인과관계가 정리된 보고서가 생성되었습니다.</p>
-            <button id="download-btn">Markdown 보고서 다운로드</button>
-            <div id="survey-area">
+            <h3>🎉 근본 원인이 파악되었습니다!</h3>
+            <div id="root-cause-report" style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 5px solid #4caf50;">
+                <p><strong>[도출된 근본 원인]</strong></p>
+                <div id="root-cause-content" style="font-size: 1.1em; margin-bottom: 10px;"></div>
+                <p><strong>[분석 확신도]</strong>: <span id="root-cause-confidence"></span></p>
+            </div>
+            <p>파악된 내용과 인과관계가 정리된 전체 보고서를 확인하시겠습니까?</p>
+            <button id="download-btn">Markdown 보고서 생성 및 다운로드</button>
+            <div id="survey-area" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px;">
                 <h4>진단 결과에 만족하시나요? (1-5점)</h4>
                 <div class="rating-stars">
                     <span class="star" data-value="1">★</span><span class="star" data-value="2">★</span><span class="star" data-value="3">★</span><span class="star" data-value="4">★</span><span class="star" data-value="5">★</span>
@@ -63,7 +69,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         let sessionId = urlParams.get('session_id');
         let selectedRating = 0;
-        let currentStep = 0;
+        let currentTurn = 0;
 
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
@@ -72,6 +78,7 @@
         const resultArea = document.getElementById('result-area');
         const downloadBtn = document.getElementById('download-btn');
         const submitRatingBtn = document.getElementById('submit-rating');
+        const turnCountSpan = document.getElementById('turn-count');
 
         // 페이지 로드 시 기존 세션 이력 가져오기
         window.addEventListener('DOMContentLoaded', async () => {
@@ -81,13 +88,11 @@
                     const res = await fetch(`/inquiry/api/inquiry/${sessionId}/history/`);
                     const data = await res.json();
                     if (data.messages && data.messages.length > 0) {
-                        chatContainer.innerHTML = ''; // 초기 환영 메시지 제거
+                        chatContainer.innerHTML = '';
                         data.messages.forEach((msg, idx) => {
-                            // 사용자의 경우 롤백 버튼을 위해 임시 스텝 할당
-                            appendMessage(msg.role, msg.content, msg.role === 'user' ? Math.floor(idx/2) + 1 : 0);
+                            appendMessage(msg.role, msg.content);
                         });
-                        currentStep = data.step;
-                        if (data.awaiting_consent) showConsentButtons();
+                        updateState(data);
                     }
                 } catch (err) {
                     console.error('이력 로딩 실패:', err);
@@ -97,23 +102,45 @@
             }
         });
 
-        function appendMessage(role, content, step) {
+        function appendMessage(role, content) {
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            
-            let html = `<div>${content}</div>`;
-            if (role === 'user' && step > 0) {
-                html += `<span class="rollback-btn" onclick="rollback(${step})">[이 시점으로 롤백]</span>`;
-            }
-            div.innerHTML = html;
+            div.innerHTML = `<div>${content}</div>`;
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function updateState(data) {
+            currentTurn = data.turn_count || 0;
+            turnCountSpan.innerText = currentTurn;
+
+            // 1. 근본 원인 리포트 표시
+            if (data.root_cause && data.root_cause.root_cause_found) {
+                document.getElementById('root-cause-content').innerText = data.root_cause.content;
+                document.getElementById('root-cause-confidence').innerText = data.root_cause.confidence_label;
+                
+                // 상세화 불가능한 경우에만 결과 영역 표시 (상세화 가능 시 대화 계속)
+                if (!data.root_cause.can_detail) {
+                    resultArea.style.display = 'block';
+                }
+            }
+
+            // 2. 연장 승인 UI
+            if (currentTurn >= 5 && !data.is_extension_approved && (!data.root_cause || !data.root_cause.root_cause_found)) {
+                showApprovalButtons();
+            }
+
+            // 3. 무의미한 답변 반복으로 인한 종료
+            if (data.invalid_response_count >= 3) {
+                appendMessage('assistant', '⚠️ 의미 있는 답변이 반복되지 않아 진단을 종료합니다. 현재까지의 내용을 바탕으로 보고서를 확인해 주세요.');
+                resultArea.style.display = 'block';
+            }
         }
 
         async function sendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
-            appendMessage('user', text, currentStep);
+            appendMessage('user', text);
             userInput.value = '';
             toggleLoading(true);
 
@@ -127,12 +154,50 @@
                     sessionId = data.session_id;
                     history.pushState(null, '', `?session_id=${sessionId}`);
                 }
-                currentStep = data.step;
+                
                 appendMessage('assistant', data.question);
+                updateState(data);
 
-                if (data.awaiting_consent) showConsentButtons();
             } catch (err) {
-                appendMessage('assistant', '오류 발생');
+                appendMessage('assistant', '오류 발생: 서버와의 통신이 원활하지 않습니다.');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function showApprovalButtons() {
+            const div = document.createElement('div');
+            div.id = 'approval-area';
+            div.style.marginTop = '10px';
+            div.innerHTML = `
+                <button onclick="sendApproval(true)">네, 계속할게요</button>
+                <button style="background-color: #f44336; margin-left: 5px;" onclick="sendApproval(false)">아니요, 여기까지 할게요</button>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendApproval(approved) {
+            document.getElementById('approval-area').remove();
+            if (!approved) {
+                appendMessage('assistant', "알겠습니다. 현재까지의 정보를 바탕으로 진단을 종료합니다.");
+                resultArea.style.display = 'block';
+                return;
+            }
+            
+            toggleLoading(true);
+            try {
+                // 연장 승인 처리를 위해 서버에 'Yes' 답변 전송 (is_extension_approved 상태를 업데이트하도록 flows 설계 필요)
+                const res = await fetch(`/inquiry/api/inquiry/${sessionId}/chat/`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ answer: "질의를 연장하겠습니다." }) 
+                });
+                const data = await res.json();
+                appendMessage('assistant', data.question);
+                updateState(data);
+            } catch (err) {
+                console.error(err);
             } finally {
                 toggleLoading(false);
             }

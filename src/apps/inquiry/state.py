@@ -1,18 +1,18 @@
-import operator
-from typing import Any, Annotated, TypedDict
+from typing import Annotated, Any, TypedDict
+
+from langchain_core.messages import AnyMessage
+from langgraph.graph import add_messages
 
 
-class GraphState(TypedDict):
+class InquiryState(TypedDict):
     """
     진단 에이전트의 상태를 정의하는 클래스입니다.
+    langchain-core의 AnyMessage와 langgraph의 add_messages를 활용합니다.
     """
 
-    initial_input: str
-    messages: Annotated[list[dict[str, str]], operator.add]
-    current_step: int
-    is_final_diagnosis: bool
-    metadata: dict[str, Any]
-    causal_chain: list[dict[str, str]]
-    identified_assumptions: list[str]
-    final_root_cause: str | None
-    awaiting_consent: bool
+    messages: Annotated[list[AnyMessage], add_messages]
+    turn_count: int
+    invalid_response_count: int
+    is_extension_approved: bool
+    root_cause: dict[str, Any] | None  # RootCause 엔티티 데이터
+    metadata: dict[str, Any]  # 사용자 페르소나, 배경 지식 등

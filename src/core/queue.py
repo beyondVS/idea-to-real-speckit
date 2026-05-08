@@ -52,7 +52,7 @@ class TaskQueue:
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
-            return # 루프가 실행 중이 아니면 시작 불가
+            return  # 루프가 실행 중이 아니면 시작 불가
 
         # 1. 큐 초기화 또는 루프 변경 감지 시 재설정
         if self.queue is None or self._loop != current_loop:
@@ -60,7 +60,7 @@ class TaskQueue:
             self._loop = current_loop
             self.worker_task = None
             logger.info(f"TaskQueue (re)initialized for loop: {id(current_loop)}")
-            
+
         # 2. 워커 태스크가 없거나 종료된 경우 시작
         if self.worker_task is None or self.worker_task.done():
             self.worker_task = asyncio.create_task(self._worker())
@@ -73,7 +73,7 @@ class TaskQueue:
         작업을 큐에 추가하고 결과를 기다립니다.
         """
         self.start()  # 워커 및 큐 상태 확인
-        
+
         future = self._loop.create_future()
         await self.queue.put((func, args, kwargs, future))
         return await future

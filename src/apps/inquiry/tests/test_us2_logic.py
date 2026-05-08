@@ -1,30 +1,55 @@
-from unittest.mock import MagicMock, patch
-
 import pytest
+from langchain_core.messages import HumanMessage
 
-from apps.inquiry.nodes import questioner_node
+from apps.inquiry.graph import create_inquiry_graph
+from apps.inquiry.state import InquiryState
 
 
 @pytest.mark.asyncio
-async def test_questioner_node_generation():
+async def test_inquiry_extension_transition():
     """
-    T016: Questioner Node가 이전 분석 결과를 바탕으로 심층 질문을 생성하는지 확인합니다.
+    T016: 질의 횟수가 5회에 도달했을 때 await_extension 노드로 전이되는지 확인합니다.
     """
-    state = {
-        "session_id": "test-session",
-        "messages": [{"role": "user", "content": "생산성이 낮아요."}],
-        "current_step": 1,
-        "metadata": {"persona": "팀장"},
-        "logical_leaps": ["지표 부재"],
-        "hidden_assumptions": ["도구 문제"],
+    workflow = create_inquiry_graph()
+    app = workflow.compile()
+
+    # 5회 도달 상태 시뮬레이션
+    state: InquiryState = {
+        "messages": [HumanMessage(content="답변")],
+        "turn_count": 5,
+        "invalid_response_count": 0,
+        "is_extension_approved": False,
+        "root_cause": None,
+        "metadata": {},
     }
 
-    with patch("apps.inquiry.nodes.invoke_llm_with_retry") as mock_invoke:
-        mock_response = MagicMock()
-        mock_response.content = "생산성을 측정하는 구체적인 지표가 있나요?"
-        mock_invoke.return_value = mock_response
+    # analyzer 노드를 거친 후 should_continue 에지에 의해 await_extension으로 가야 함
+    # 여기서는 간소화를 위해 가상 실행 경로 확인 또는 실제 invoke 결과 검증
+    # (노드 로직이 mock 처리되지 않았으므로 turn_count가 6이 될 수 있음)
 
-        new_state = await questioner_node(state)
+    # turn_count=5인 상태에서 analyzer 실행 시 should_continue는 'await_extension' 반환해야 함
+    from apps.inquiry.graph import should_continue
 
-        assert "생산성" in new_state["messages"][-1]["content"]
-        assert new_state["current_step"] == 2
+    # state["root_cause"]가 없는(미도출) 상태여야 함
+    result = should_continue(state)
+    assert result == "await_extension"
+
+
+@pytest.mark.asyncio
+async def test_invalid_response_limit_termination():
+    """
+    T017: 무의미한 답변이 3회 반복될 때 END로 전이되는지 확인합니다.
+    """
+    from apps.inquiry.graph import should_continue
+
+    state: InquiryState = {
+        "messages": [HumanMessage(content="모름")],
+        "turn_count": 3,
+        "invalid_response_count": 3,
+        "is_extension_approved": False,
+        "root_cause": None,
+        "metadata": {},
+    }
+
+    result = should_continue(state)
+    assert result == "END"
